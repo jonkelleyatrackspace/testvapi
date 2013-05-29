@@ -10,7 +10,7 @@ Feature: Test the exterior entryway of the Rackspace Public Cloud for general av
     When I get "/"
     Then the response json will not have path "$.regression." with value "xxxxx" as "int"
     Then the response json will not have path "$.regressionx."
-    Then the response json will have path "$.versions.version[*].status." with value "CURRENT" as "str"
+    Then the response json will have path "$.versions.INVALID.PATH.version[*].status." with value "CURRENT" as "str"
     Then the response will have status 200
   Examples:
   | myendpoints |
