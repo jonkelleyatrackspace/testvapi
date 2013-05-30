@@ -1,4 +1,10 @@
-#!/usr/bin/env python
+graylog_server = '10.14.247.240'  # If this was a string 
+                        # to a graylog server all your messages 
+                        # would magically go there.
+
+graylog_facility = 'valkyrietest.GELF' # A graylog setting.
+
+###########################################################################
 # Author: Jon Kelley <jon.kelley@rackspace>                               #
 # Date: May 23 2013                                                       #
 # Title:  Testvapi. TestvalueAPI. It tests the values and stuff.          #
@@ -10,35 +16,15 @@
 #        Find examples, source, instructions on github.                   #
 #             https://github.com/jonkelleyatrackspace/testvapi            #
 # Python Version: 2.7.3 ###################################################
-#  Dependecies:         # The dude abides. 
+#  Dependecies:         # 
 #    behave  1.2.2      #
 #    requests 1.2.0     #
 #    jsonpath 0.54      #
 #########################
 
-########################################################################
-# Test Settings
-#-----------------------------------------------------------------------
-# Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_server      = '127.0.0.1'       # If this was a string 
-                                            # to a graylog server all your messages 
-                                            # would magically go there.
-                                            # Else False is disabled.
-                                        
-graylog_facility    = 'valkyrietest.GELF'  # Your graylog faculity
-
-# Requests options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-verify_ssl_certificates    = False          # If your SSL certs are bad
-                                            # you will get nasty exceptions.
-                                            # You should have good SSL certs.
-                                            # If you don't, set this to False.
-                                            # Then fix your certs.
-                                            # Then set this to true.
-########################################################################
-
 #########################################################################
 # Giant wall of importation devices.                                    #
-#-----------------------------------------------------------------------#
+#########################################################################
 from behave import *                                                    # =>  Behave makes sure the API's behave, man.
 import requests                                                         # =>  <3
 from urlparse import urljoin                                            # =>  Allows url manipulation.
@@ -50,7 +36,7 @@ import time                                                             # =>  Fo
 from socket import *; import zlib                                       # =>  For the graylogclient class.
                                                                         # => and for banner fetcher
 #########################################################################
-# TODO Unhook reason='null' from giant exceptor class. Its redundant.
+# TODO Unhook curlcommand=context.httpstate['curlcommand'] from giant exceptor class. Its redundant.
 
 """ This step test implements RESTful API testing towards any API, 
     but specifically tailored for Rackspace API testing.
@@ -170,7 +156,7 @@ def assertionthing(**kwargs):
     request         = kwargs.get('request',None)            # REQUEST 
     responsehead    = kwargs.get('responsehead',None)       # RESPONSE HEADERS
     response        = kwargs.get('response',None)           # HTTP RAW RESPONSE
-    reason          = kwargs.get('reason',None)             # The reason we failed humanly aka RCA
+    curlcommand          = kwargs.get('curlcommand',None)             # The reason we failed humanly aka RCA
     logic           = kwargs.get('logic',None)              # The logic why we failed 'parse error'
 
     # Logs some useful debugging data to stdout for QE
@@ -194,18 +180,29 @@ def assertionthing(**kwargs):
         else:           message['level']            = '3'
         message['facility']                         = graylog_facility
         message['host']                             = str(host)
-        if _success:    message['short_message']    = 'OK: ' + str(requestpath) + " - " + str(gherkinstep)
-        else:           message['short_message']    = 'FAIL: ' + str(requestpath) + " - " + str(gherkinstep)
+        if _success:
+            message['short_message']    = "OKAY " + str(requestpath)
+            message['short_message']   += " STAUS" + str(statuscode)
+            message['short_message']   += " VERB" + str(verb)
+            gherkinstep = str(gherkinstep)
+            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
+        else:
+            message['short_message']    = "FAIL " + str(requestpath)
+            message['short_message']   += " STATUS" + str(statuscode)
+            message['short_message']   += " VERB" + str(verb)
+            gherkinstep = str(gherkinstep)
+            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
 
         message['full_message'] = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
-        message['_testrequirements']      = str(gherkinstep)
-        message['_testoutcome']      = str(logic)
-        message['_http_verb']                    = str(verb)
-        message['_http_status']                  = str(statuscode)
+        message['testrequirements']         = str(gherkinstep)
+        message['curlcommand']              = str(curlcommand)
+        message['testoutcome']              = str(logic)
+        message['httpverb']                 = str(verb)
+        message['httpcode']                 = str(statuscode)
         if latency != '-1.000': # Hack, you can inseert -1000 to omit this field.
-            message['_http_latency']                 = str(latency)
-        message['_resource']                     = str(requesturl)
-        message['_subpath']                     = str(requestpath)
+            message['httplatency']          = str(latency)
+        message['fullurl']                  = str(requesturl)
+        message['requrl']                   = str(requestpath)
         print message
         try:
             gelfinstance = graylogclient()
@@ -216,17 +213,17 @@ def assertionthing(**kwargs):
     # Raise typical unit testing exception.
     if not _success:
         raise AssertionError(ansi.OKBLUE + "\nRESOURCE .......: " + ansi.FAIL + str(requesturl)   + 
-                             ansi.OKBLUE + "\nRCA ............: " + ansi.FAIL + str(reason) +
+                             ansi.OKBLUE + "\nCURL COMMAND ...: " + ansi.FAIL + str(curlcommand) +
                              ansi.OKBLUE + "\nUNDERLYING_LOGIC: " + ansi.FAIL + str(logic)  + ansi.ENDC)
 
 
 # Givens
-#@given('I send a socket to {host}')                       #untested
-#def step(context, host):
-#    stepsyntax = 'i can connect to {host}'.format(host=host)
-#    """ Attempt to connect to remote host or endpoint of some kind via TCP. Fail otherwise. """
-#    context.connecthost = host
-#    
+@given('I send a socket to {host}')                       #untested
+def step(context, host):
+    stepsyntax = 'i can connect to {host}'.format(host=host)
+    """ Attempt to connect to remote host or endpoint of some kind via TCP. Fail otherwise. """
+    context.connecthost = host
+    
 
 @given('my request has the auth token "{token}"')                       #feature-complee
 def step(context, token):
@@ -259,10 +256,13 @@ def step(context, seconds):
 ##################################
 # Whens
 
-@when('I connect to {host} on port {port} then it must respond within {timeout} seconds')
-@when('I connect to {host} on port {port} then it must respond within {timeout} second')
-def step(context,host,port,timeout):
-    stepsyntax='I connect to {host} on port {port} then it must respond within {timeout} seconds'.format(host=host,port=port,timeout=timeout)
+@when('I connect on port {port} it must respond within {timeout} seconds')
+@when('I connect on port {port} it must respond within {timeout} second')
+def step(context,port,timeout):
+    """ Connects on a port via a socket and verifies it works.
+        EXAMPLE: I connect on port 80
+    """
+    stepsyntax='I connect on port {port} it must respond within {timeout} seconds'.format(port=port,timeout=timeout)
     failure_logic = 'Port is unavailable'
     # Below is a horrible hack to get the hostnames for endpoints to be targetted.
     #  a redesign is immenent.
@@ -274,7 +274,7 @@ def step(context,host,port,timeout):
         before = time.time()
         port = int(port)
         timeout = float(timeout)
-        bannerdata = tcpbanner(host,port,timeout)
+        bannerdata = tcpbanner(context.connecthost,port,timeout)
         after = time.time()
         latency = after - before
         assertionthing(success=True,verb='SOCKET',
@@ -283,7 +283,7 @@ def step(context,host,port,timeout):
                     request='Is this port online?',
                     responsehead=None,
                     response=str(bannerdata),
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=None,latency=latency)
     except:
         failure_logic = "Socket " +traceback.format_exc()
@@ -293,16 +293,43 @@ def step(context,host,port,timeout):
                     request='Is this port online?',
                     responsehead=None,
                     response='null',
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=None,latency=-1.000,)
+
+def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True):
+    """ CURL COMMAND BUILDER
+    Magically builds ops friendly curl command. Hooraayyy!!!
+    Pass it variables and it will build a command for you.
+    
+    Example GET request:
+        curlcmd(verb='GET',url='http://aol.com',timeout=10,payload=None,sslverify=False)
+        curlcmd(verb='POST',url='http://aol.com',timeout=10,payload="TEST",sslverify=True)
+    """
+    timeout=str(int(timeout))
+    curlcmd =  'curl -v '
+    curlcmd += ' -X'+verb+' '
+    curlcmd += ' --connect-timeout ' + timeout + ' '
+    if verify == False:
+        curlcmd += ' --insecure '
+    try:
+        ## If headers exist this will work.
+        for (header,value) in reqheaders.items():
+            print header,value
+            if header == 'x-auth-token': value = '***CENSORED FOR YOU KNOW SAFETY***'
+            curlcmd += "-H " + "\'" + header + ": " + value + "\' "
+    except AttributeError:
+        pass
+    if payload:
+        curlcmd += "--data-ascii \'" + payload + "\' " 
+    curlcmd += "\'"+url+"\'"
+    return str(curlcmd)
 
 @when('I get "{path}"')                                                 #feature-complee
 def step(context, path):
-    """ GET request within path context of server.
-        You know, think: 
-                        I get "cloud_account/9363835"
+    """ Sends GET verb to path
+        EXAMPLE: I get "cloud_account/9363835"
     """
-    stepsyntax = "I get {path}".format(path=path)
+    stepsyntax = "I GET {path}".format(path=path)
 
     context.requestpath = path
     url = urljoin(context.request_endpoint, path)
@@ -313,10 +340,9 @@ def step(context, path):
 
     try:
         timebench_before = time.time()
-        context.response = requests.get(url, timeout=timeout,headers=context.request_headers, verify=verify_ssl_certificates) # Makes full response.
+        context.response = requests.get(url, timeout=timeout,headers=context.request_headers,verify=False) # Makes full response.
         timebench_after = time.time()
         _latency = timebench_after - timebench_before
-        
         try:    _statuscode         = str(context.response.status_code)
         except: _statuscode         = '-1'
         try:    _requestheaders     = str(context.request_headers)
@@ -328,17 +354,9 @@ def step(context, path):
         try:    _response            = str(context.response.text)
         except: _response            = "Not applicable (No data?)" 
         
-        # Nifty idea. Sends out equiv curlcommand for you to replicate.
-        curlcmd =  'curl -v '
-        curlcmd += ' -XGET '
-        curlcmd += ' --connect-timeout ' + str(int(timeout)) + ' '
-        for (header,value) in context.request_headers.items():
-           print header,value
-           if header == 'x-auth-token': value = '***CENSORED***'
-           curlcmd += "-H " + "\'" + header + ": " + value + "\' "
-        curlcmd += "\'"+url+"\'"
-
-        print curlcmd
+        # Ops curlcommand
+        _curlcommand = curlcmd(verb='GET',url=url,timeout=timeout,reqheaders=context.request_headers,payload=None,verify=False)
+        print "CURL COMMAND: " + _curlcommand
 
         context.httpstate = { 'requesturi'      : url ,
                                 'verb'            : 'GET' ,
@@ -347,7 +365,106 @@ def step(context, path):
                                 'responseheaders' : _responseheaders ,
                                 'response'        : _response ,
                                 'latency'         : _latency,
-                                'statuscode'      : _statuscode
+                                'statuscode'      : _statuscode,
+                                'curlcommand'      : _curlcommand
+                            }
+    except:
+        context.httpstate = { 'requesturi'      : url ,
+                                'verb'            : 'GET' ,
+                                'requestheaders'  : _requestheaders ,
+                                'request'         : _request ,
+                                'responseheaders' : _responseheaders ,
+                                'response'        : _response ,
+                                'latency'         : _latency,
+                                'statuscode'      : _statuscode,
+                                'curlcommand'      : _curlcommand
+                            }
+        failure_logic = traceback.format_exc()
+        assertionthing(success=False,verb=context.httpstate['verb'],
+                    requesturl=context.httpstate['requesturi'],
+                    requesthead=context.httpstate['requestheaders'],
+                    request=context.httpstate['request'],
+                    responsehead=context.httpstate['responseheaders'],
+                    response=context.httpstate['response'],
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
+                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+#@when('I delete "{path}"')                                              # TODO untested XXX
+#def step(context, path):# XXX UNTESTED XXX
+#    """ Entirely untested!! (no unit tests written for this yet)
+#        Sends DELETE verb to path
+#        EXAMPLE: I delete "server/entity/id/9363835"
+#    """
+#    stepsyntax = "I DELETE {path}".format(path=path)
+#    url = urljoin(context.request_endpoint, path)
+#    try: # There's got to be a better way to set None if missing/attributerror
+#        timeout = context.request_timeout
+#    except AttributeError:
+#        timeout = None
+#    timebench_before = time.time()
+#    context.response = requests.delete(url,timeout=timeout,headers=context.request_headers) # Makes full response.
+#    timebench_after = time.time()
+#    
+#    _latency = timebench_after - timebench_before
+#    try:    _statuscode         = str(context.response.status_code)
+#    except: _statuscode         = '-1'
+#    try:    _requestheaders     = str(context.request_headers)
+#    except: _requestheaders     = None
+#    try:    _request            = str(payload)
+#    except: _request            = None
+#    try:    _responseheaders    = str(context.response.headers)
+#    except: _responseheaders    = None
+#    try:    _response            = str(context.response.text)
+#    except: _response            = "Not applicable (No data?)" 
+#    context.httpstate = { 'requesturi'      : url ,
+#                            'verb'            : 'GET' ,
+#                            'requestheaders'  : _requestheaders ,
+#                            'request'         : _request ,
+#                            'responseheaders' : _responseheaders ,
+#                            'response'        : _response ,
+#                            'latency'         : _latency,
+#                            'statuscode'      : _statuscode
+#                        }
+#TODO @when('I post "{path}" payload file "{payload}"')    
+
+@when('I post "{path}" with the docstring below')                        # feature-complete
+def step(context, path):
+    payload = context.text # This is what captures the docstring as payload
+    stepsyntax = "I POST {path} with payload below...".format(path=path)
+    context.requestpath = path
+    url = urljoin(context.request_endpoint, path)
+    try: # There's got to be a better way to set None if missing/attributerror
+        timeout = context.request_timeout
+    except AttributeError:
+        timeout = None
+
+    try:
+        timebench_before = time.time()
+        context.response = requests.post(url, data=payload,timeout=timeout,headers=context.request_headers,verify=False) # Makes full response.
+        timebench_after = time.time()
+        _latency = timebench_after - timebench_before
+        try:    _statuscode         = str(context.response.status_code)
+        except: _statuscode         = '-1'
+        try:    _requestheaders     = str(context.request_headers)
+        except: _requestheaders     = None
+        try:    _request            = str(payload)
+        except: _request            = None
+        try:    _responseheaders    = str(context.response.headers)
+        except: _responseheaders    = None
+        try:    _response            = str(context.response.text)
+        except: _response            = "Not applicable (No data?)" 
+
+        _curlcommand = curlcmd(verb='POST',url=url,timeout=timeout,reqheaders=context.request_headers,payload=payload,verify=False)
+        print "CURL COMMAND: " + _curlcommand
+
+        context.httpstate = { 'requesturi'      : url ,
+                                'verb'            : 'GET' ,
+                                'requestheaders'  : _requestheaders ,
+                                'request'         : _request ,
+                                'responseheaders' : _responseheaders ,
+                                'response'        : _response ,
+                                'latency'         : _latency,
+                                'statuscode'      : _statuscode,
+                                'curlcommand'      : _curlcommand
                             }
     except:
         failure_logic = traceback.format_exc()
@@ -357,79 +474,8 @@ def step(context, path):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@when('I delete "{path}"')                                              # TODO untested XXX
-def step(context, path):# XXX UNTESTED XXX
-    """ Entirely untested.
-        DELETE request within path context of server.
-        You know, think: 
-                        I delete "server/entity/id/9363835"
-    """
-    stepsyntax = "I delete {path}".format(path=path)
-    url = urljoin(context.request_endpoint, path)
-    try: # There's got to be a better way to set None if missing/attributerror
-        timeout = context.request_timeout
-    except AttributeError:
-        timeout = None
-    timebench_before = time.time()
-    context.response = requests.delete(url,timeout=timeout,headers=context.request_headers, verify=verify_ssl_certificates) # Makes full response.
-    timebench_after = time.time()
-    
-    _latency = timebench_after - timebench_before
-    try:    _statuscode         = str(context.response.status_code)
-    except: _statuscode         = '-1'
-    try:    _requestheaders     = str(context.request_headers)
-    except: _requestheaders     = None
-    try:    _request            = str(payload)
-    except: _request            = None
-    try:    _responseheaders    = str(context.response.headers)
-    except: _responseheaders    = None
-    try:    _response            = str(context.response.text)
-    except: _response            = "Not applicable (No data?)" 
-    context.httpstate = { 'requesturi'      : url ,
-                            'verb'            : 'GET' ,
-                            'requestheaders'  : _requestheaders ,
-                            'request'         : _request ,
-                            'responseheaders' : _responseheaders ,
-                            'response'        : _response ,
-                            'latency'         : _latency,
-                            'statuscode'      : _statuscode
-                        }
-#TODO @when('I post "{path}" payload file "{payload}"')    
-@when('I post "{path}" with payload "{payload}"')                        # feature-complete
-def step(context, path,payload):
-    stepsyntax = "I post {path}".format(path=path)
-    url = urljoin(context.request_endpoint, path)
-    try: # There's got to be a better way to set None if missing/attributerror
-        timeout = context.request_timeout
-    except AttributeError:
-        timeout = None
-
-    timebench_before = time.time()
-    context.response = requests.post(url, data=payload,timeout=timeout,headers=context.request_headers, verify=verify_ssl_certificates) # Makes full response.
-    timebench_after = time.time()
-    
-    _latency = timebench_after - timebench_before
-    try:    _statuscode         = str(context.response.status_code)
-    except: _statuscode         = '-1'
-    try:    _requestheaders     = str(context.request_headers)
-    except: _requestheaders     = None
-    try:    _request            = str(payload)
-    except: _request            = None
-    try:    _responseheaders    = str(context.response.headers)
-    except: _responseheaders    = None
-    try:    _response            = str(context.response.text)
-    except: _response            = "Not applicable (No data?)" 
-    context.httpstate = { 'requesturi'      : url ,
-                            'verb'            : 'GET' ,
-                            'requestheaders'  : _requestheaders ,
-                            'request'         : _request ,
-                            'responseheaders' : _responseheaders ,
-                            'response'        : _response ,
-                            'latency'         : _latency,
-                            'statuscode'      : _statuscode
-                        }
     
 #TODO @when('I put "{path}" payload file "{payload}"')  
 @when('I put "{path}" with payload "{payload}"')                        # TODO untested XXX
@@ -442,7 +488,7 @@ def step(context, path,payload):
     except AttributeError:
         timeout = None
     timebench_before = time.time()
-    context.response = requests.put(url, data=payload,timeout=timeout,headers=context.request_headers, verify=verify_ssl_certificates) # Makes full response.
+    context.response = requests.put(url, data=payload,timeout=timeout,headers=context.request_headers) # Makes full response.
     timebench_after = time.time()
     
     _latency = timebench_after - timebench_before
@@ -481,7 +527,7 @@ def step(context, text):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -491,7 +537,7 @@ def step(context, text):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 
 @then('the response will not contain string "{text}"')                  # feature-complete
@@ -505,7 +551,7 @@ def step(context, text):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -515,7 +561,7 @@ def step(context, text):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will have the header "{header}" with the value "{value}"') # feature-complete
 def step(context, header, value):
@@ -528,7 +574,7 @@ def step(context, header, value):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -538,7 +584,7 @@ def step(context, header, value):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will have the header "{header}"')                   # feature-complete
 def step(context, header):
@@ -554,7 +600,7 @@ def step(context, header):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -564,7 +610,7 @@ def step(context, header):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will not have the header "{header}" with the value "{value}"')# feature-complete
 def step(context, header, value):
@@ -577,7 +623,7 @@ def step(context, header, value):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -587,7 +633,7 @@ def step(context, header, value):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will not have the header "{header}"')               # feature-complete
 def step(context, header,reason):
@@ -600,7 +646,7 @@ def step(context, header,reason):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     else:
         failure_logic = 'OK'
@@ -610,7 +656,7 @@ def step(context, header,reason):
                    request=context.httpstate['request'],
                    responsehead=context.httpstate['responseheaders'],
                    response=context.httpstate['response'],
-                   reason='null', gherkinstep=stepsyntax,
+                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response json will have path "{path}" with value "{value}" as "{valuetype}"') # feature-complete
 def step(context, path, value, valuetype):
@@ -626,7 +672,7 @@ def step(context, path, value, valuetype):
                         request=context.httpstate['request'],
                         responsehead=context.httpstate['responseheaders'],
                         response=context.httpstate['response'],
-                        reason='null', gherkinstep=stepsyntax,
+                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                         logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 
         # Effing unicode strings need hacks to determine their type.
@@ -652,7 +698,7 @@ def step(context, path, value, valuetype):
                         request=context.httpstate['request'],
                         responsehead=context.httpstate['responseheaders'],
                         response=context.httpstate['response'],
-                        reason='null', gherkinstep=stepsyntax,
+                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                         logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
         else:
             failure_logic = 'OK'
@@ -662,7 +708,7 @@ def step(context, path, value, valuetype):
                        request=context.httpstate['request'],
                        responsehead=context.httpstate['responseheaders'],
                        response=context.httpstate['response'],
-                       reason='null', gherkinstep=stepsyntax,
+                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -672,7 +718,7 @@ def step(context, path, value, valuetype):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response json will not have path "{path}" with value "{value}" as "{valuetype}"') # feature-complete
 def step(context, path, value, valuetype):
@@ -703,7 +749,7 @@ def step(context, path, value, valuetype):
                            request=context.httpstate['request'],
                            responsehead=context.httpstate['responseheaders'],
                            response=context.httpstate['response'],
-                           reason='null', gherkinstep=stepsyntax,
+                           curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                            logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
             else:
                 failure_logic = 'OK'
@@ -713,7 +759,7 @@ def step(context, path, value, valuetype):
                            request=context.httpstate['request'],
                            responsehead=context.httpstate['responseheaders'],
                            response=context.httpstate['response'],
-                           reason='null', gherkinstep=stepsyntax,
+                           curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                            logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -723,7 +769,7 @@ def step(context, path, value, valuetype):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response json will have path "{path}"')                      # feature-complete
 def step(context, path):
@@ -739,7 +785,7 @@ def step(context, path):
                         request=context.httpstate['request'],
                         responsehead=context.httpstate['responseheaders'],
                         response=context.httpstate['response'],
-                        reason='null', gherkinstep=stepsyntax,
+                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                         logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
         else:
             failure_logic = 'OK'
@@ -749,7 +795,7 @@ def step(context, path):
                        request=context.httpstate['request'],
                        responsehead=context.httpstate['responseheaders'],
                        response=context.httpstate['response'],
-                       reason='null', gherkinstep=stepsyntax,
+                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -759,7 +805,7 @@ def step(context, path):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response json will not have path "{path}"')                  # feature-complete
 def step(context, path):
@@ -774,7 +820,7 @@ def step(context, path):
                         request=context.httpstate['request'],
                         responsehead=context.httpstate['responseheaders'],
                         response=context.httpstate['response'],
-                        reason='null', gherkinstep=stepsyntax,
+                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                         logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
         else:
             failure_logic = 'OK'
@@ -784,7 +830,7 @@ def step(context, path):
                        request=context.httpstate['request'],
                        responsehead=context.httpstate['responseheaders'],
                        response=context.httpstate['response'],
-                       reason='null', gherkinstep=stepsyntax,
+                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -794,7 +840,7 @@ def step(context, path):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will have status {status}')
 def step(context, status):
@@ -809,7 +855,7 @@ def step(context, status):
                        request=context.httpstate['request'],
                        responsehead=context.httpstate['responseheaders'],
                        response=context.httpstate['response'],
-                       reason='null', gherkinstep=stepsyntax,
+                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -819,7 +865,7 @@ def step(context, status):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
 @then('the response will not have status {status}')
 def step(context, status):
@@ -834,7 +880,7 @@ def step(context, status):
                        request=context.httpstate['request'],
                        responsehead=context.httpstate['responseheaders'],
                        response=context.httpstate['response'],
-                       reason='null', gherkinstep=stepsyntax,
+                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
     except:
         failure_logic = traceback.format_exc()
@@ -844,5 +890,5 @@ def step(context, status):
                     request=context.httpstate['request'],
                     responsehead=context.httpstate['responseheaders'],
                     response=context.httpstate['response'],
-                    reason='null', gherkinstep=stepsyntax,
+                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
