@@ -46,7 +46,18 @@ So how do I install it?
 	git clone git@github.com:jonkelleyatrackspace/testvapi.git
 	cd testvapi
 
+How do I send my outputs to graylog?
+-------------
+Edit `features/steps/steps.py` and change `graylog_server = []` to a list of your hosts.
+
+For example:
+		graylog_server = 127.0.0.1
+
+How do I run unit tests?
+-------------
 Run the example!
 
-	behave features/*
+	behave features/*.feature
+	
+You can run the API tests from jenkens, cron etc!!
 
