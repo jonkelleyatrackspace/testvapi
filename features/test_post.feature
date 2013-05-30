@@ -1,6 +1,5 @@
-Feature: Tests most Valkyrie functions for availability.
-  As the ops / qe person
-  Lets make sure all of valkyrie works.
+Feature: Tests the identity system with a bogus API key and makes sure the
+	system replies with unauthorized.
 
   Scenario Outline: Make sure status page returns!!
     Given my request has the header "content-type" with the value "application/json"
