@@ -11,3 +11,4 @@ Feature: Maybe testing sockets is important to you.
 
   Scenario: Test socket timeout
     When I connect to google.com on port 80 then it must respond within 22 seconds
+
