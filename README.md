@@ -8,9 +8,10 @@ in unit-test style breakdown.
 DEVOPS people can set the graylog output to TRUE, then set this up in jenkins, crontab, or whatever to 
 do continious testing with performance metrics about the status of your API 24/7.
 
-It uses a human style syntax to check an API so that non-technical people can write unit tests based on API documentation.
+The best part is, the syntax is so easy you don't have to be a programmer to write unit tests for your API.
+Now that's enterprise-easy isn't it!
 
-Here are some examples of its syntax:
+Here are some examples of its lexical syntax:
 
 	  Scenario Outline: Get accounts
 		Given my request has the header "x-auth-token" with the value "xxxx-xxxx-xxxxx"
