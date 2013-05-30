@@ -1,9 +1,12 @@
 testvapi
 ========
-Test Value API script is meant to test API's for valid responses, headers, data, codes, whatever!
+Test Value API script is meant to test your enterprise API for proper responses, headers, data, status codes, latency whatever!
 
-This is meant to be used for QE to certify an API has full functional coverage, and for ops to get performance
-data metrics in graylog.
+QE people can use this on the command line to get a status output of how many API calls are working or failed
+in unit-test style breakdown.
+
+DEVOPS people can set the graylog output to TRUE, then set this up in jenkins, crontab, or whatever to 
+do continious testing with performance metrics about the status of your API 24/7.
 
 It uses a human style syntax to check an API so that non-technical people can write unit tests based on API documentation.
 
