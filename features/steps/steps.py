@@ -1,8 +1,4 @@
-graylog_server = '10.14.247.240'  # If this was a string 
-                        # to a graylog server all your messages 
-                        # would magically go there.
-
-graylog_facility = 'valkyrietest.GELF' # A graylog setting.
+#!/usr/bin/env python 
 
 ###########################################################################
 # Author: Jon Kelley <jon.kelley@rackspace>                               #
@@ -16,12 +12,31 @@ graylog_facility = 'valkyrietest.GELF' # A graylog setting.
 #        Find examples, source, instructions on github.                   #
 #             https://github.com/jonkelleyatrackspace/testvapi            #
 # Python Version: 2.7.3 ###################################################
-#  Dependecies:         # 
+#  Dependecies:         # The dude abides. 
 #    behave  1.2.2      #
 #    requests 1.2.0     #
 #    jsonpath 0.54      #
 #########################
+########################################################################
+# Test Settings
+#-----------------------------------------------------------------------
+# Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+graylog_server      = '127.0.0.1'       # If this was a string 
+                                            # to a graylog server all your messages 
+                                            # would magically go there.
+                                            # Else False is disabled.
+                                        
+graylog_facility    = 'valkyrietest.GELF'  # Your graylog faculity
 
+# Requests options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+verify_ssl_certificates    = False          # If your SSL certs are bad
+                                            # you will get nasty exceptions.
+                                            # You should have good SSL certs.
+                                            # If you don't, set this to False.
+                                            # Then fix your certs.
+                                            # Then set this to true.
+########################################################################
+ 
 #########################################################################
 # Giant wall of importation devices.                                    #
 #########################################################################
@@ -36,7 +51,6 @@ import time                                                             # =>  Fo
 from socket import *; import zlib                                       # =>  For the graylogclient class.
                                                                         # => and for banner fetcher
 #########################################################################
-# TODO Unhook curlcommand=context.httpstate['curlcommand'] from giant exceptor class. Its redundant.
 
 """ This step test implements RESTful API testing towards any API, 
     but specifically tailored for Rackspace API testing.
@@ -195,7 +209,7 @@ def assertionthing(**kwargs):
 
         message['full_message'] = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
         message['testrequirements']         = str(gherkinstep)
-        message['curlcommand']              = str(curlcommand)
+        message['reproducecommand']              = str(curlcommand)
         message['testoutcome']              = str(logic)
         message['httpverb']                 = str(verb)
         message['httpcode']                 = str(statuscode)
@@ -213,7 +227,7 @@ def assertionthing(**kwargs):
     # Raise typical unit testing exception.
     if not _success:
         raise AssertionError(ansi.OKBLUE + "\nRESOURCE .......: " + ansi.FAIL + str(requesturl)   + 
-                             ansi.OKBLUE + "\nCURL COMMAND ...: " + ansi.FAIL + str(curlcommand) +
+                             ansi.OKBLUE + "\nREPRODUCE WITH..: " + ansi.FAIL + str(curlcommand) +
                              ansi.OKBLUE + "\nUNDERLYING_LOGIC: " + ansi.FAIL + str(logic)  + ansi.ENDC)
 
 
@@ -256,13 +270,10 @@ def step(context, seconds):
 ##################################
 # Whens
 
-@when('I connect on port {port} it must respond within {timeout} seconds')
-@when('I connect on port {port} it must respond within {timeout} second')
-def step(context,port,timeout):
-    """ Connects on a port via a socket and verifies it works.
-        EXAMPLE: I connect on port 80
-    """
-    stepsyntax='I connect on port {port} it must respond within {timeout} seconds'.format(port=port,timeout=timeout)
+@when('I connect to {host} on port {port} then it must respond within {timeout} seconds')
+@when('I connect to {host} on port {port} then it must respond within {timeout} second')
+def step(context,host,port,timeout):
+    stepsyntax='I connect to {host} on port {port} then it must respond within {timeout} seconds'.format(host=host,port=port,timeout=timeout)
     failure_logic = 'Port is unavailable'
     # Below is a horrible hack to get the hostnames for endpoints to be targetted.
     #  a redesign is immenent.
@@ -274,26 +285,29 @@ def step(context,port,timeout):
         before = time.time()
         port = int(port)
         timeout = float(timeout)
-        bannerdata = tcpbanner(context.connecthost,port,timeout)
+        bannerdata = tcpbanner(host,port,timeout)
         after = time.time()
         latency = after - before
+
+        curlcommand = 'telnet ' + str(host) + ' ' + str(int(port))
         assertionthing(success=True,verb='SOCKET',
                     requesturl=requesturl,
                     requesthead=None,
                     request='Is this port online?',
                     responsehead=None,
                     response=str(bannerdata),
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
+                    curlcommand=curlcommand, gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=None,latency=latency)
     except:
         failure_logic = "Socket " +traceback.format_exc()
+        curlcommand = 'telnet ' + str(host) + ' ' + str(int(port))
         assertionthing(success=False,verb='SOCKET',
                     requesturl=requesturl,
                     requesthead=None,
                     request='Is this port online?',
                     responsehead=None,
                     response='null',
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
+                    curlcommand=curlcommand, gherkinstep=stepsyntax,
                     logic=failure_logic,statuscode=None,latency=-1.000,)
 
 def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True):
