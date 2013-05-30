@@ -50,6 +50,7 @@ import traceback                                                        # =>  tr
 import time                                                             # =>  For request time benchmarking.
 from socket import *; import zlib                                       # =>  For the graylogclient class.
                                                                         # => and for banner fetcher
+import os # for open()
 #########################################################################
 
 """ This step test implements RESTful API testing towards any API, 
@@ -440,9 +441,14 @@ def step(context, path):
 #                        }
 #TODO @when('I post "{path}" payload file "{payload}"')    
 
+@when('I post "{path}" with the data from file "{filename}"')                        # feature-complete
 @when('I post "{path}" with the docstring below')                        # feature-complete
-def step(context, path):
-    payload = context.text # This is what captures the docstring as payload
+def step(context, path,filename=None):
+    try:
+        payload = context.text # This is what captures the docstring as payload
+    except AttributeError: #It just means docstring wasnt used in this case.
+        payload = open(filename, "rb").readlines()[0]
+
     stepsyntax = "I POST {path} with payload below...".format(path=path)
     context.requestpath = path
     url = urljoin(context.request_endpoint, path)
@@ -453,7 +459,7 @@ def step(context, path):
 
     try:
         timebench_before = time.time()
-        context.response = requests.post(url, data=payload,timeout=timeout,headers=context.request_headers,verify=False) # Makes full response.
+        context.response = requests.post(url, data=payload,timeout=timeout,headers=context.request_headers,verify=False) # Makes full 
         timebench_after = time.time()
         _latency = timebench_after - timebench_before
         try:    _statuscode         = str(context.response.status_code)
