@@ -1,16 +1,10 @@
 
-
-# Givens
-@given('I send a socket to {host}')                       #untested
-def step(context, host):
-    stepsyntax = 'i can connect to {host}'.format(host=host)
-    """ Attempt to connect to remote host or endpoint of some kind via TCP. Fail otherwise. """
-    context.connecthost = host
-    
-
+#############################
+## GIVEN
+#############################
 @given('my request has the auth token "{token}"')                       #feature-complee
 def step(context, token):
-    """ shunt style Add x-auth-header for token automagically """
+    """ Shunt style Add x-auth-header for token automagically """
     context.execute_steps(unicode("Given my request has the header \"x-auth-token\" with the value \"{token}\"".format(token=token)))
 
 @given('my request has the header "{header}" with the value "{value}"') #feature-complee
@@ -36,9 +30,9 @@ def step(context, seconds):
     """
     context.request_timeout = float(seconds)
 
-##################################
-# Whens
-
+#############################
+## WHEN
+#############################
 @when('I connect to {host} on port {port} then it must respond within {timeout} seconds')
 @when('I connect to {host} on port {port} then it must respond within {timeout} second')
 def step(context,host,port,timeout):
@@ -275,8 +269,11 @@ def step(context, path,payload):
 
 # TODO @when('I post "{path}" with multipart payload "{payload}"')      TODO 
 
-##################################
-# Thens
+
+#############################
+## THEN
+#############################
+
 @then('the response will contain string "{text}"')                      # feature-complete
 def step(context, text):
     stepsyntax = "the response will contain string {text}".format(text=text)
