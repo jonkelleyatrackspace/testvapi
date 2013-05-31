@@ -68,3 +68,7 @@ Run the example!
 	
 You can run the API tests from jenkens, cron etc!!
 
+What does graylog look like?
+-------------
+Like this:
+![A picture of graylog ui is here](http://i.imgur.com/2d4W40e.png)
