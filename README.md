@@ -1,17 +1,21 @@
 testvapi
 ========
-Test Value API script is meant to test your enterprise API for proper responses, headers, data, status codes, latency whatever!
+Testvapi is a small python suite which runs through your API does end-to-end API response verification.
 
-QE people can use this on the command line to get a status output of how many API calls are working or failed
-in unit-test style breakdown.
+Just because your unit tests all pass != mean the applications external state will meet a particular criteria.
 
-DEVOPS people can set the graylog output to TRUE, then set this up in jenkins, crontab, or whatever to 
-do continious testing with performance metrics about the status of your API 24/7.
+Our goals are simple:
+1. Connect to an API from the viewpoint of a customer and run every operation
+3. Validate and all facets of the API response.
+4. Report all metrics to graylog for ops.
 
-The best part is, the syntax is so easy you don't have to be a programmer to write unit tests for your API.
-Now that's enterprise-easy isn't it!
+Your QE people can test your applications using their console as a reporting tool.
+Your OPs people can run these tests from cron or another scheduler and get metrics on API performance 24/7 in graylog.
 
-Here are some examples of its lexical syntax:
+
+The best part is, the syntax is so easy you don't have to be a programmer to write your end to end tests.
+
+A limited set of examples showing off lexical syntax:
 
 	  Scenario Outline: Get accounts
 		Given my request has the header "x-auth-token" with the value "xxxx-xxxx-xxxxx"
