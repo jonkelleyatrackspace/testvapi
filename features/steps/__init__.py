@@ -21,12 +21,12 @@
 # Test Settings
 #-----------------------------------------------------------------------
 # Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_server      = '127.0.0.1'       # If this was a string 
+graylog_server      = '10.14.247.240'       # If this was a string 
                                             # to a graylog server all your messages 
                                             # would magically go there.
                                             # Else False is disabled.
                                         
-graylog_facility    = 'valkyrietest.GELF'  # Your graylog faculity
+graylog_facility    = 'test'  # Your graylog faculity
 
 # Requests options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 verify_ssl_certificates    = False          # If your SSL certs are bad
@@ -157,39 +157,42 @@ def assertionthing(**kwargs):
     # Logs the magical and wonderful outputs to graylog for OPS.
     if graylog_server:
         message = {}
-        message['version']      = '1.0'
-        # Level:            DEC .............. Syslog level (0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug)
-        if _success:    message['level']            = '6'
-        else:           message['level']            = '3'
-        message['facility']                         = graylog_facility
-        message['host']                             = str(host)
+        message['version']                  = '1.0'
+        # 0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug
+        if _success:
+            message['level']                = '6'
+        else:
+            message['level']                = '3'
+        message['facility']                 = graylog_facility
+        message['host']                     = str(host)
+#        if _success:
+#            message['short_message']        = 'OK: ' + str(requestpath) + " - " + str(gherkinstep)
+#        else:
+#            message['short_message']        = 'FAIL: ' + str(requestpath) + " - " + str(gherkinstep)
         if _success:
             message['short_message']    = "OKAY " + str(requestpath)
-            message['short_message']   += " STAUS" + str(statuscode)
-            message['short_message']   += " VERB" + str(verb)
-            gherkinstep = str(gherkinstep)
-            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
+            message['short_message']    += " status" + str(statuscode)
+            message['short_message']    += " verb" + str(verb)
+            gherkinstep                 = str(gherkinstep)
+            message['short_message']    += " step" + gherkinstep.replace(" ", "_")
         else:
             message['short_message']    = "FAIL " + str(requestpath)
-            message['short_message']   += " STATUS" + str(statuscode)
-            message['short_message']   += " VERB" + str(verb)
+            message['short_message']    += " verb" + str(statuscode)
+            message['short_message']    += " verb" + str(verb)
             gherkinstep = str(gherkinstep)
-            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
-
-        message['full_message'] = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
-        message['testrequirements']         = str(gherkinstep)
-        message['reproducecommand']              = str(curlcommand)
-        message['testoutcome']              = str(logic)
-        message['httpverb']                 = str(verb)
-        message['httpcode']                 = str(statuscode)
-        if latency != '-1.000': # Hack, you can inseert -1000 to omit this field.
-            message['httplatency']          = str(latency)
-        message['fullurl']                  = str(requesturl)
-        message['requrl']                   = str(requestpath)
-        print message
+            message['short_message']    += " step" + gherkinstep.replace(" ", "_")
+        message['full_message']         = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
+        message['_rule']    = str(gherkinstep)
+        message['_stdout']         = str(logic)
+        message['_httpverb']           = str(verb)
+        message['_httpstatus']         = str(statuscode)
+        message['_httplatency']    = str(latency)
+        message['_url'] = str(requesturl)
+        message['_urlpath'] = str(requestpath)
         try:
+            print message
             gelfinstance = graylogclient()
-            gelfinstance.log(json.dumps(message),graylog_server) # writeout 
+            gelfinstance.log(json.dumps(message),graylog_server) # writeout
         except:
             print("Graylog send request error. I don't know why!!!!")
 
