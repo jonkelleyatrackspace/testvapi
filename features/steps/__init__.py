@@ -21,10 +21,8 @@
 # Test Settings
 #-----------------------------------------------------------------------
 # Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_server      = '10.14.247.240'       # If this was a string 
-                                            # to a graylog server all your messages 
-                                            # would magically go there.
-                                            # Else False is disabled.
+graylog_servers = { 'host1' : '192.168.0.1' , 'host2' : '192.168.0.2'}
+# Either set to false for disable, or set to a dictionary like { 'desc' : '0.0.0.0' , }
                                         
 graylog_facility    = 'test'  # Your graylog faculity
 
@@ -58,7 +56,7 @@ class ansi:
     HEADER = '\033[95m';  OKBLUE = '\033[94m'; OKGREEN = '\033[92m'
     WARNING = '\033[93m'; FAIL   = '\033[91m' ;ENDC    = '\033[0m'
 
-if not graylog_server:
+if not graylog_servers:
     """ THX STYLE INTRO """
     logging.critical(ansi.OKBLUE + "=========================================================" + ansi.ENDC)# THX STYLE INTRO
     logging.critical(ansi.OKBLUE + "testvapi :: Testing the values of all your apis          " + ansi.ENDC)# THX STYLE INTRO
@@ -155,7 +153,7 @@ def assertionthing(**kwargs):
     print('END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEB')
 
     # Logs the magical and wonderful outputs to graylog for OPS.
-    if graylog_server:
+    if graylog_servers:
         message = {}
         message['version']                  = '1.0'
         # 0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug
@@ -192,7 +190,8 @@ def assertionthing(**kwargs):
         try:
             print message
             gelfinstance = graylogclient()
-            gelfinstance.log(json.dumps(message),graylog_server) # writeout
+            for i,graylog_server in graylog_servers:
+                gelfinstance.log(json.dumps(message),graylog_server) # writeout
         except:
             print("Graylog send request error. I don't know why!!!!")
 
