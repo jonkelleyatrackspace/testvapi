@@ -191,10 +191,10 @@ def assertionthing(**kwargs):
         try:
             print message
             gelfinstance = graylogclient()
-            for i,graylog_server in graylog_servers:
-                gelfinstance.log(json.dumps(message),graylog_server) # writeout
-        except:
-            print("Graylog send request error. I don't know why!!!!")
+            for k,v in graylog_servers.items():
+                gelfinstance.log(json.dumps(message),v) # writeout
+        except Exception, e:
+            print("Graylog send request error. EXCEPTION: " + str(e))
 
     # Raise typical unit testing exception.
     if not _success:
