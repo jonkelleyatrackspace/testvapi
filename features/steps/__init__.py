@@ -21,7 +21,7 @@
 # Test Settings
 #-----------------------------------------------------------------------
 # Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_servers = { 'host1' : '192.168.0.1' , 'host2' : '192.168.0.2'}
+graylog_servers = { 'x' : '127.0.0.1', 'y' : '127.0.0.2' } 
 # Either set to false for disable, or set to a dictionary like { 'desc' : '0.0.0.0' , }
                                         
 graylog_facility    = 'test'  # Your graylog faculity
@@ -168,21 +168,22 @@ def assertionthing(**kwargs):
 #        else:
 #            message['short_message']        = 'FAIL: ' + str(requestpath) + " - " + str(gherkinstep)
         if _success:
-            message['short_message']    = "OKAY " + str(requestpath)
-            message['short_message']    += " status" + str(statuscode)
-            message['short_message']    += " verb" + str(verb)
-            gherkinstep                 = str(gherkinstep)
-            message['short_message']    += " step" + gherkinstep.replace(" ", "_")
+            message['short_message']   = "OKAY " + str(requestpath)
+            message['short_message']   += " status" + str(statuscode)
+            message['short_message']   += " verb" + str(verb)
+            gherkinstep                = str(gherkinstep)
+            message['short_message']   += " step" + gherkinstep.replace(" ", "_")
         else:
-            message['short_message']    = "FAIL " + str(requestpath)
-            message['short_message']    += " verb" + str(statuscode)
-            message['short_message']    += " verb" + str(verb)
+            message['short_message']   = "FAIL " + str(requestpath)
+            message['short_message']   += " verb" + str(statuscode)
+            message['short_message']   += " verb" + str(verb)
             gherkinstep = str(gherkinstep)
-            message['short_message']    += " step" + gherkinstep.replace(" ", "_")
-        message['full_message']         = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
-        message['_rule']    = str(gherkinstep)
-        message['_stdout']         = str(logic)
+            message['short_message']   += " step" + gherkinstep.replace(" ", "_")
+        message['full_message']        = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
+        message['_rule']               = str(gherkinstep)
+        message['_stdout']             = str(curlcommand)
         message['_httpverb']           = str(verb)
+        message['_cmd']                = str(verb)
         message['_httpstatus']         = str(statuscode)
         message['_httplatency']    = str(latency)
         message['_url'] = str(requesturl)
