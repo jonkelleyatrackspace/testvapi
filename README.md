@@ -5,9 +5,12 @@ Testvapi is a small python suite which runs through your API does end-to-end API
 Just because your unit tests all pass != mean the applications external state will meet a particular criteria.
 
 Our goals are simple:
+
 1. Connect to an API from the viewpoint of a customer and run every operation
-3. Validate and all facets of the API response.
-4. Report all metrics to graylog for ops.
+
+3. Verify and all facets of an API response.
+
+4. Report all metrics to graylog for ops/qe
 
 Your QE people can test your applications using their console as a reporting tool.
 Your OPs people can run these tests from cron or another scheduler and get metrics on API performance 24/7 in graylog.
