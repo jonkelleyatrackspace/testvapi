@@ -110,11 +110,14 @@ def step(context, path):
 
     testmetrics = {}
     testmetrics['_targethost']  = requesthost
-    testmetrics['_originhost']  = LOCAL_IP
+    testmetrics['_requestpath'] = requestpath
+    testmetrics['_requesturl']  = requesturl
+    testmetrics['_testcamefrom'] = LOCAL_IP
     testmetrics['_thecmd']      = thiscmd
     testmetrics['_httpverb']    = verb
     testmetrics['_testtype']    = 'http'
     testmetrics['_thestep']     = stepsyntax
+
     if VERIFY_SSL:
         testmetrics['_sslcertverify'] = 'True'
     else:
@@ -128,11 +131,11 @@ def step(context, path):
         
         try:                 httpstatus          = str(context.response.status_code)
         except NameError:   httpstatus          = str(0)
-        try:                httprequesthead     = str(context.request_headers)
+        try:                httprequesthead     = context.request_headers
         except NameError:   httprequesthead     = None
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
-        try:                httpresponsehead    = str(context.response.headers)
+        try:                httpresponsehead    = context.response.headers
         except NameError:   httpresponsehead    = None
         try:                httpresponse        = str(context.response.text)
         except NameError:   httpresponse        = None
@@ -140,7 +143,7 @@ def step(context, path):
         testmetrics['_httprequest']         = httprequest
         testmetrics['_httpresponse']        = httpresponse
         testmetrics['_httpresponsehead']    = httpresponsehead
-        testmetrics['_fullmessage']         = '---request---\n' + str(httprequest) + '\n\n---resp.headers---\n' + str(httpresponsehead) + '\n\n---response---\n' + str(httpresponse)
+        testmetrics['_fullmessage']         = '========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
         testmetrics['_httpstatuscode']      = httpstatus
         testmetrics['_latency']             = latency
 
@@ -148,11 +151,11 @@ def step(context, path):
     except:
         try:                 httpstatus          = str(context.response.status_code)
         except NameError:   httpstatus          = str(0)
-        try:                httprequesthead     = str(context.request_headers)
+        try:                httprequesthead     = context.request_headers
         except NameError:   httprequesthead     = None
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
-        try:                httpresponsehead    = str(context.response.headers)
+        try:                httpresponsehead    = context.response.headers
         except NameError:   httpresponsehead    = None
         try:                httpresponse        = str(context.response.text)
         except NameError:   httpresponse        = None
@@ -164,6 +167,7 @@ def step(context, path):
         testmetrics['_httpstatuscode']      = httpstatus
         testmetrics['_latency']             = timeout
         testmetrics['_exception']           = str(traceback.format_exc()) # For exceptions!
+
         context.httpstate = testmetrics
         testoutcome(isokay=False, metrics=testmetrics)
 

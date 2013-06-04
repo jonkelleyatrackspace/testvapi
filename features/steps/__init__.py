@@ -131,6 +131,15 @@ def testoutcome(isokay=None,metrics={}):
         print(metrics['_httpresponse'])
         print('END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEB')
 
+    try:
+        # Attempt to rewrite all auth tokens into obscurity.
+        for (header,value) in metrics['_httprequesthead'].items():
+            #print "wildxthang " + str(header + value)
+            if header.lower() == 'x-auth-token':
+                metrics['_httprequesthead'][header] = '***CENSORED***'
+    except NameError:
+        pass
+
     if graylog_servers:
         message = {}
         message['version']                  = '1.0'
@@ -197,10 +206,10 @@ def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True
     if verify == False:
         curlcmd += ' --insecure '
     try:
-        ## If headers exist this will work.
+        # Attempt to rewrite all auth tokens into obscurity.
         for (header,value) in reqheaders.items():
             #print "wildxthang " + str(header + value)
-            if header == 'x-auth-token': value = '***CENSORED FOR YOU KNOW SAFETY***'
+            if header.lower() == 'x-auth-token': value = '***CENSORED FOR GREAT JUSTICE ***'
             curlcmd += "-H " + "\'" + header + ": " + value + "\' "
     except AttributeError:
         pass
