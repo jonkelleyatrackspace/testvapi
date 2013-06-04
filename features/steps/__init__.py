@@ -21,7 +21,7 @@
 # Test Settings
 #-----------------------------------------------------------------------
 # Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_servers = { 'x' : '127.0.0.1', 'y' : '127.0.0.2' } 
+graylog_servers = { 'r' : '10.14.247.240', 'x' : '127.0.0.1', 'y' : '127.0.0.2' } 
 # Either set to false for disable, or set to a dictionary like { 'desc' : '0.0.0.0' , }
                                         
 graylog_facility    = 'GELFtv'  # Your graylog faculity
