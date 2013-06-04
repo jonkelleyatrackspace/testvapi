@@ -1,4 +1,4 @@
-
+VERIFY_SSL = False
 #############################
 ## GIVEN
 #############################
@@ -37,107 +37,135 @@ def step(context, seconds):
 @when('I connect to {host} on port {port} then it must respond within {timeout} second')
 def step(context,host,port,timeout):
     stepsyntax='I connect to {host} on port {port} then it must respond within {timeout} seconds'.format(host=host,port=port,timeout=timeout)
-    failure_logic = 'Port is unavailable'
     # Below is a horrible hack to get the hostnames for endpoints to be targetted.
     #  a redesign is immenent.
-    hostname = getfqdn() # getfdqn() will lookup the localname, then set it to the value of PTR if its there
+    hostname = str(getfqdn()) # getfdqn() will lookup the localname, then set it to the value of PTR if its there
                          # if it differs.
                          # on the otherhand gethostname() always pulls the localname, no reverse lookups
-    requesturl = 'SocketOrigin://' + str(hostname)
+
+    # Opslove.
+    curlcommand = 'telnet ' + str(host) + ' ' + str(int(port))
+
     try:
-        before = time.time()
         port = int(port)
         timeout = float(timeout)
-        bannerdata = tcpbanner(host,port,timeout)
-        after = time.time()
-        latency = after - before
 
-        curlcommand = 'telnet ' + str(host) + ' ' + str(int(port))
-        assertionthing(success=True,verb='SOCKET',
-                    requesturl=requesturl,
-                    requesthead=None,
-                    request='Is this port online?',
-                    responsehead=None,
-                    response=str(bannerdata),
-                    curlcommand=curlcommand, gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=None,latency=latency)
+        before          = time.time()
+        datagrams_ahoy  = tcpbanner(host,port,timeout)
+        after           = time.time()
+        latency         = after - before
+        
+        # All metrics prepending with _ get sent to graylog as metric.
+        testmetrics = { '_tergethost'             : hostname,             # Remote test
+                        '_originhost'             : LOCAL_IP,             # Test source
+                        '_thecmd'                 : curlcommand,
+                        '_httpverb'               : None, # BE FRIENDLY ABOUT THIS.
+                        '_httprequest'            : None, # BE FRIENDLY ABOUT THIS.
+                        '_httpresponsehead'       : None, # BE FRIENDLY ABOUT THIS.
+                        '_httpresponse'           : None, # BE FRIENDLY ABOUT THIS.
+                        '_thestep'                : stepsyntax,
+                        '_httpstatuscode'         : None, # BE FRIENDLY ABOUT THIS
+                        '_latency'                : latency,
+                        '_testtype'               : 'socket'
+                        }
+        testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = "Socket " +traceback.format_exc()
-        curlcommand = 'telnet ' + str(host) + ' ' + str(int(port))
-        assertionthing(success=False,verb='SOCKET',
-                    requesturl=requesturl,
-                    requesthead=None,
-                    request='Is this port online?',
-                    responsehead=None,
-                    response='null',
-                    curlcommand=curlcommand, gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=None,latency=-1.000,)
+        failure_logic = "SocketError " +str(traceback.format_exc())
+        testmetrics = { '_tergethost'             : hostname,
+                        '_originhost'             : LOCAL_IP,
+                        '_thecmd'                 : curlcommand,   # Reproduce one liner.
+                        '_httpverb'               : None, #<< Catcher needs to not care about this.
+                        '_httprequesthead'        : None, 
+                        '_httprequest'            : None, # BE FRIENDLY ABOUT THIS.
+                        '_httpresponsehead'       : None, # BE FRIENDLY ABOUT THIS.
+                        '_httpresponse'           : None, # BE FRIENDLY ABOUT THIS.
+                        '_fullmessage'            : str(traceback.format_exc()),
+                        '_thestep'                : stepsyntax,
+                        '_httpstatuscode'         : None, # BE FRIENDLY ABOUT THIS
+                        '_latency'                : latency,
+                        '_testtype'               : 'socket',
+                        }
+        testoutcome(isokay=False, metrics=testmetrics)
 
 
-@when('I get "{path}"')                                                 #feature-complee
+@when('I get "{path}"')
 def step(context, path):
     """ Sends GET verb to path
         EXAMPLE: I get "cloud_account/9363835"
     """
-    stepsyntax = "I GET {path}".format(path=path)
+    verb = "GET"
+    stepsyntax = "I " + verb + " {path}".format(path=path)
 
     context.requestpath = path
-    url = urljoin(context.request_endpoint, path)
-    try: # There's got to be a better way to set None if missing/attributerror
-        timeout = context.request_timeout
-    except AttributeError:
-        timeout = None
+    requesturl  = urljoin(context.request_endpoint, path)   #i.e. https://localhost:3000/v1/operation
+    requestpath = path                                      #i.e. /v1/operation
+    requesthost = urlparse(requesturl).netloc.split(":")[0] #i.e. localhost
+
+    try:                timeout = int(context.request_timeout)
+    except NameError:   timeout = 30
+
+    # Ops yay
+    thiscmd = curlcmd(verb=verb,url=requesturl,timeout=timeout,reqheaders=context.request_headers,payload=None,verify=VERIFY_SSL)
+
+    testmetrics = {}
+    testmetrics['_targethost']  = requesthost
+    testmetrics['_originhost']  = LOCAL_IP
+    testmetrics['_thecmd']      = thiscmd
+    testmetrics['_httpverb']    = verb
+    testmetrics['_testtype']    = 'http'
+    testmetrics['_thestep']     = stepsyntax
+    if VERIFY_SSL:
+        testmetrics['_sslcertverify'] = 'True'
+    else:
+        testmetrics['_sslcertverify'] = 'False'
 
     try:
-        timebench_before = time.time()
-        context.response = requests.get(url, timeout=timeout,headers=context.request_headers,verify=False) # Makes full response.
-        timebench_after = time.time()
-        _latency = timebench_after - timebench_before
-        try:    _statuscode         = str(context.response.status_code)
-        except: _statuscode         = '-1'
-        try:    _requestheaders     = str(context.request_headers)
-        except: _requestheaders     = None
-        try:    _request            = str(payload)
-        except: _request            = None
-        try:    _responseheaders    = str(context.response.headers)
-        except: _responseheaders    = None
-        try:    _response            = str(context.response.text)
-        except: _response            = "Not applicable (No data?)" 
+        before              = time.time()
+        context.response    = requests.get(requesturl, timeout=timeout,headers=context.request_headers,verify=VERIFY_SSL) # Makes full response.
+        after               = time.time()
+        latency             = after - before
         
-        # Ops curlcommand
-        _curlcommand = curlcmd(verb='GET',url=url,timeout=timeout,reqheaders=context.request_headers,payload=None,verify=False)
-        print "CURL COMMAND: " + _curlcommand
+        try:                 httpstatus          = str(context.response.status_code)
+        except NameError:   httpstatus          = str(0)
+        try:                httprequesthead     = str(context.request_headers)
+        except NameError:   httprequesthead     = None
+        try:                httprequest         = str(payload)
+        except NameError:   httprequest         = None
+        try:                httpresponsehead    = str(context.response.headers)
+        except NameError:   httpresponsehead    = None
+        try:                httpresponse        = str(context.response.text)
+        except NameError:   httpresponse        = None
+        testmetrics['_httprequesthead']     = httprequesthead
+        testmetrics['_httprequest']         = httprequest
+        testmetrics['_httpresponse']        = httpresponse
+        testmetrics['_httpresponsehead']    = httpresponsehead
+        testmetrics['_fullmessage']         = '---request---\n' + str(httprequest) + '\n\n---resp.headers---\n' + str(httpresponsehead) + '\n\n---response---\n' + str(httpresponse)
+        testmetrics['_httpstatuscode']      = httpstatus
+        testmetrics['_latency']             = latency
 
-        context.httpstate = { 'requesturi'      : url ,
-                                'verb'            : 'GET' ,
-                                'requestheaders'  : _requestheaders ,
-                                'request'         : _request ,
-                                'responseheaders' : _responseheaders ,
-                                'response'        : _response ,
-                                'latency'         : _latency,
-                                'statuscode'      : _statuscode,
-                                'curlcommand'      : _curlcommand
-                            }
+        context.httpstate = testmetrics
     except:
-        context.httpstate = { 'requesturi'      : url ,
-                                'verb'            : 'GET' ,
-                                'requestheaders'  : _requestheaders ,
-                                'request'         : _request ,
-                                'responseheaders' : _responseheaders ,
-                                'response'        : _response ,
-                                'latency'         : _latency,
-                                'statuscode'      : _statuscode,
-                                'curlcommand'      : _curlcommand
-                            }
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        try:                 httpstatus          = str(context.response.status_code)
+        except NameError:   httpstatus          = str(0)
+        try:                httprequesthead     = str(context.request_headers)
+        except NameError:   httprequesthead     = None
+        try:                httprequest         = str(payload)
+        except NameError:   httprequest         = None
+        try:                httpresponsehead    = str(context.response.headers)
+        except NameError:   httpresponsehead    = None
+        try:                httpresponse        = str(context.response.text)
+        except NameError:   httpresponse        = None
+        testmetrics['_httprequesthead']     = httprequesthead
+        testmetrics['_httprequest']         = httprequest
+        testmetrics['_httpresponse']        = httpresponse
+        testmetrics['_httpresponsehead']    = httpresponsehead
+        testmetrics['_fullmessage']         = 'HTTP.Requests.Exception:' +  str(traceback.format_exc())
+        testmetrics['_httpstatuscode']      = httpstatus
+        testmetrics['_latency']             = timeout
+        testmetrics['_exception']           = str(traceback.format_exc()) # For exceptions!
+        context.httpstate = testmetrics
+        testoutcome(isokay=False, metrics=testmetrics)
+
 #@when('I delete "{path}"')                                              # TODO untested XXX
 #def step(context, path):# XXX UNTESTED XXX
 #    """ Entirely untested!! (no unit tests written for this yet)
@@ -273,165 +301,75 @@ def step(context, path,payload):
 #############################
 ## THEN
 #############################
-
-@then('the response will contain string "{text}"')                      # feature-complete
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will contain string "{text}"')
 def step(context, text):
-    stepsyntax = "the response will contain string {text}".format(text=text)
-    failure_logic   = 'Did not find expected text `{text}` in response.'.format(text=text )
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will contain string {text}".format(text=text)
+
     if text not in context.response.text:
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-
-@then('the response will not contain string "{text}"')                  # feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will not contain string "{text}"')
 def step(context, text):
-    stepsyntax = "the response will not contain string {text}".format(text=text)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will not contain string {text}".format(text=text)
+
     if text in context.response.text:
-        failure_logic = 'Found string `{text}` in response.'.format(text=text)
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response will have the header "{header}" with the value "{value}"') # feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will have the header "{header}" with the value "{value}"')
 def step(context, header, value):
-    stepsyntax = "the response will have the header {header} with the value {value}".format(header=header,value=value)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will have the header {header} with the value {value}".format(header=header,value=value)
     if context.response.headers[header] != value:
-        failure_logic = 'HTTP header `{header}` => `{value}` missing in response.'.format(header=header,value=value)
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response will have the header "{header}"')                   # feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will have the header "{header}"')
 def step(context, header):
-    stepsyntax = "the response will have the header {header}".format(header=header)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will have the header {header}".format(header=header)
     if header not in context.response.headers.keys():
 #        logging.debug("I saw these headers though...")
 #        for k, v in context.response.headers.iteritems():
 #            logging.debug("header: " + k + " => " + v)
-        failure_logic = 'Missing header `{header}` in response.'.format(header=header) 
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response will not have the header "{header}" with the value "{value}"')# feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will not have the header "{header}" with the value "{value}"')
 def step(context, header, value):
-    stepsyntax = "the response will not have the header {header} with the value {value}".format(header=header,value=value)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will not have the header {header} with the value {value}".format(header=header,value=value)
     if context.response.headers[header] == value:
-        failure_logic = 'HTTP header `{header}` => `{value}` found in response.'.format(header=header,value=value)
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response will not have the header "{header}"')               # feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response will not have the header "{header}"')
 def step(context, header,reason):
-    stepsyntax = "the response will not have the header {header}".format(header=header)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will not have the header {header}".format(header=header)
     if context.response.headers[header]:
-        failure_logic = 'HTTP header `{header}` => `{value} found in response.'.format(header=header,value=context.response.headers[header] )
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testoutcome(isokay=False, metrics=testmetrics)
     else:
-        failure_logic = 'OK'
-        assertionthing(success=True,verb=context.httpstate['verb'],
-                   requesturl=context.httpstate['requesturi'],
-                   requesthead=context.httpstate['requestheaders'],
-                   request=context.httpstate['request'],
-                   responsehead=context.httpstate['responseheaders'],
-                   response=context.httpstate['response'],
-                   curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                   logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response json will have path "{path}" with value "{value}" as "{valuetype}"') # feature-complete
+        testoutcome(isokay=True, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response json will have path "{path}" with value "{value}" as "{valuetype}"')
 def step(context, path, value, valuetype):
-    stepsyntax = "the response json will have the path {path} with value {value} as {valuetype}".format(path=path,value=value,valuetype=valuetype)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response json will have the path {path} with value {value} as {valuetype}".format(path=path,value=value,valuetype=valuetype)
     # Check path exists 
     try:
         if not context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists first of all... else raise() """
-            failure_logic = 'Response does not have path {path}'.format(path=path)
-            assertionthing(success=False,verb=context.httpstate['verb'],
-                        requesturl=context.httpstate['requesturi'],
-                        requesthead=context.httpstate['requestheaders'],
-                        request=context.httpstate['request'],
-                        responsehead=context.httpstate['responseheaders'],
-                        response=context.httpstate['response'],
-                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
 
         # Effing unicode strings need hacks to determine their type.
         if valuetype == "int":
@@ -449,38 +387,17 @@ def step(context, path, value, valuetype):
         if not value in context.jsonsearch.returnpath(context.response.json(),path):
             """ Verify if value within returned list of results for that path.. else raise() """
             logging.error(ansi.OKBLUE +  "Gherkin input was " + str(type(value)) + " with value \"" + str(value) + "\" ... remote side contained a list with " + str(context.jsonsearch.returnpath(context.response.json(),path)) + "\n"+ansi.ENDC )
-            failure_logic = 'Response json path {path} has no value matching {value}'.format(path=path,value=value)
-            assertionthing(success=False,verb=context.httpstate['verb'],
-                        requesturl=context.httpstate['requesturi'],
-                        requesthead=context.httpstate['requestheaders'],
-                        request=context.httpstate['request'],
-                        responsehead=context.httpstate['responseheaders'],
-                        response=context.httpstate['response'],
-                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
         else:
-            failure_logic = 'OK'
-            assertionthing(success=True,verb=context.httpstate['verb'],
-                       requesturl=context.httpstate['requesturi'],
-                       requesthead=context.httpstate['requestheaders'],
-                       request=context.httpstate['request'],
-                       responsehead=context.httpstate['responseheaders'],
-                       response=context.httpstate['response'],
-                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                       logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response json will not have path "{path}" with value "{value}" as "{valuetype}"') # feature-complete
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response json will not have path "{path}" with value "{value}" as "{valuetype}"')
 def step(context, path, value, valuetype):
-    stepsyntax = "the response json will not have the path {path} with value {value} as {valuetype}".format(path=path,value=value,valuetype=valuetype)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response json will not have the path {path} with value {value} as {valuetype}".format(path=path,value=value,valuetype=valuetype)
     # If path even exists..
     try:
         if context.jsonsearch.pathexists(context.response.json(),path):
@@ -500,154 +417,67 @@ def step(context, path, value, valuetype):
             if value in context.jsonsearch.returnpath(context.response.json(),path):
                 """ Verify if string is within path, if so raise() """
                 logging.error(ansi.OKBLUE +  "Gherkin input was " + str(type(value)) + " with value \"" + str(value) + "\" ... remote side contained a list with " + str(context.jsonsearch.returnpath(context.response.json(),path)) + "\n"+ansi.ENDC )
-                failure_logic = 'Response json path {path} has value matching {value}'.format(path=path,value=value)
-                assertionthing(success=False,verb=context.httpstate['verb'],
-                           requesturl=context.httpstate['requesturi'],
-                           requesthead=context.httpstate['requestheaders'],
-                           request=context.httpstate['request'],
-                           responsehead=context.httpstate['responseheaders'],
-                           response=context.httpstate['response'],
-                           curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                           logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+                testoutcome(isokay=False, metrics=testmetrics)
             else:
-                failure_logic = 'OK'
-                assertionthing(success=True,verb=context.httpstate['verb'],
-                           requesturl=context.httpstate['requesturi'],
-                           requesthead=context.httpstate['requestheaders'],
-                           request=context.httpstate['request'],
-                           responsehead=context.httpstate['responseheaders'],
-                           response=context.httpstate['response'],
-                           curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                           logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+                testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response json will have path "{path}"')                      # feature-complete
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response json will have path "{path}"')
 def step(context, path):
-    stepsyntax = "the response json will have path {path}".format(path=path)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response json will have path {path}".format(path=path)
     #raise Exception(context.response.json())
     try:
         if not context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists first of all """
-            failure_logic = 'Response does not have path {path}'.format(path=path)
-            assertionthing(success=False,verb=context.httpstate['verb'],
-                        requesturl=context.httpstate['requesturi'],
-                        requesthead=context.httpstate['requestheaders'],
-                        request=context.httpstate['request'],
-                        responsehead=context.httpstate['responseheaders'],
-                        response=context.httpstate['response'],
-                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
         else:
-            failure_logic = 'OK'
-            assertionthing(success=True,verb=context.httpstate['verb'],
-                       requesturl=context.httpstate['requesturi'],
-                       requesthead=context.httpstate['requestheaders'],
-                       request=context.httpstate['request'],
-                       responsehead=context.httpstate['responseheaders'],
-                       response=context.httpstate['response'],
-                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                       logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-@then('the response json will not have path "{path}"')                  # feature-complete
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
+@then('the response json will not have path "{path}"')
 def step(context, path):
-    stepsyntax = "the response json will not have path {path}".format(path=path)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response json will not have path {path}".format(path=path)
     try:
         if context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists , then fail """
-            failure_logic = 'Response json has path {path}'.format(path=path)
-            assertionthing(success=False,verb=context.httpstate['verb'],
-                        requesturl=context.httpstate['requesturi'],
-                        requesthead=context.httpstate['requestheaders'],
-                        request=context.httpstate['request'],
-                        responsehead=context.httpstate['responseheaders'],
-                        response=context.httpstate['response'],
-                        curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                        logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
         else:
-            failure_logic = 'OK'
-            assertionthing(success=True,verb=context.httpstate['verb'],
-                       requesturl=context.httpstate['requesturi'],
-                       requesthead=context.httpstate['requestheaders'],
-                       request=context.httpstate['request'],
-                       responsehead=context.httpstate['responseheaders'],
-                       response=context.httpstate['response'],
-                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                       logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
 @then('the response will have status {status}')
 def step(context, status):
-    stepsyntax = "the response will have status {status}".format(status=status)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will have status {status}".format(status=status)
     try:
         status = get_status_code(status)
         if context.response.status_code != status:
-            failure_logic = 'Response status is {response.status_code}, not {status}'.format(response=context.response, status=status)
-            assertionthing(sucess=False,verb=context.httpstate['verb'],
-                       requesturl=context.httpstate['requesturi'],
-                       requesthead=context.httpstate['requestheaders'],
-                       request=context.httpstate['request'],
-                       responsehead=context.httpstate['responseheaders'],
-                       response=context.httpstate['response'],
-                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                       logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
+        else:
+            testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
+# ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
 @then('the response will not have status {status}')
 def step(context, status):
-    stepsyntax = "the response will not have status {status}".format(status=status)
+    testmetrics                 = context.httpstate
+    testmetrics['_thestep']     = "the response will not have status {status}".format(status=status)
     try:
         status = get_status_code(status)
         if context.response.status_code == status:
-            failure_logic = 'Response status is {status}'.format(status=status)
-            assertionthing(success=False,verb=context.httpstate['verb'],
-                       requesturl=context.httpstate['requesturi'],
-                       requesthead=context.httpstate['requestheaders'],
-                       request=context.httpstate['request'],
-                       responsehead=context.httpstate['responseheaders'],
-                       response=context.httpstate['response'],
-                       curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                       logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+            testoutcome(isokay=False, metrics=testmetrics)
+        else:
+            testoutcome(isokay=True, metrics=testmetrics)
     except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
+        testmetrics['_exception'] = str(traceback.format_exc())
+        testoutcome(isokay=False, metrics=testmetrics)
 

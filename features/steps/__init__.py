@@ -24,7 +24,7 @@
 graylog_servers = { 'x' : '127.0.0.1', 'y' : '127.0.0.2' } 
 # Either set to false for disable, or set to a dictionary like { 'desc' : '0.0.0.0' , }
                                         
-graylog_facility    = 'test'  # Your graylog faculity
+graylog_facility    = 'GELFtv'  # Your graylog faculity
 
 # Requests options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 verify_ssl_certificates    = False          # If your SSL certs are bad
@@ -49,6 +49,7 @@ import time                                                             # =>  Fo
 from socket import *; import zlib                                       # =>  For the graylogclient class.
                                                                         # => and for banner fetcher
 import os # for open()
+import urllib2; u = urllib2.urlopen('http://checkip.dyndns.org'); line = u.next(); LOCAL_IP=line.split("<")[6].split().pop()
 #########################################################################
 
 class ansi:
@@ -108,106 +109,81 @@ def tcpbanner(targetHost, targetPort, timeOut):
     print '' + str(results)
     connsocket.close()
 
-def assertionthing(**kwargs):
-    """ This is a giant event processor thing.
-        I'll clean it up and break it out later I promise.
-        
-        Any event it basically evaluates based on if it's FAIL or not, and then
-        aggregates and collects the data from the entire unit test from kwargs.
-        
-        If run from the TTY it's also what throws the assertion failures that you
-        see on your console.
-        
-        It also hooks greylog in this area to funnel all your datas to the internets
-        in the event you have an IP configured instead of false.
-    """
-    statuscode     = kwargs.get('statuscode',None)
-    latency     = kwargs.get('latency',None)
-    latency     = "%.*f" % ( 3, latency ) # Strip off all but 3 char
-    gherkinstep     = kwargs.get('gherkinstep',None)
-    if kwargs.get('success',False) == True:
-        _success = True # If successful, we change greylogs err level
-    else:
-        _success = False
-    verb            = kwargs.get('verb',None)               # VeRB USED
-    requesturl      = kwargs.get('requesturl',None)         # REQUEST URL
-    requestpath     = urlparse(requesturl).path
-    host            = urlparse(requesturl).netloc.split(":")[0] # Gets just hostname
-    requesthead     = kwargs.get('requesthead',None)        # REQUEST HEADERS
-    request         = kwargs.get('request',None)            # REQUEST 
-    responsehead    = kwargs.get('responsehead',None)       # RESPONSE HEADERS
-    response        = kwargs.get('response',None)           # HTTP RAW RESPONSE
-    curlcommand          = kwargs.get('curlcommand',None)             # The reason we failed humanly aka RCA
-    logic           = kwargs.get('logic',None)              # The logic why we failed 'parse error'
+class YourTestWasFatalException(Exception):
+	def __init__(self, ivalue):
+		Exception.__init__( self, ivalue )
+		self.value = ivalue
+		print "Caught an error."
+	def __str__(self):
+		return self.value
 
-    # Logs some useful debugging data to stdout for QE
-    print('HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG')
-    print('>>>> Request Head for (' + verb + " " + host + ') <<<<')
-    print(requesthead)
-    print('>>>> Request Data <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-    print(request)
-    print('>>>> Response Head <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-    print(responsehead)
-    print('>>>> Response <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-    print(response)
-    print('END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEB')
+def testoutcome(isokay=None,metrics={}):
+    if isokay == None:
+        raise Exception("The result should always be either isokay True|False")
 
-    # Logs the magical and wonderful outputs to graylog for OPS.
+    if metrics['_testtype'] == 'http':
+        print('HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG....HTTP.DEBUG')
+        print('>>>> Request Data <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        print(metrics['_httprequest'])
+        print('>>>> Response Head <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        print(metrics['_httpresponsehead'])
+        print('>>>> Response <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        print(metrics['_httpresponse'])
+        print('END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEB')
+
     if graylog_servers:
         message = {}
         message['version']                  = '1.0'
-        # 0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug
-        if _success:
+        # 0=emerg,
+        # 1=alert, 
+        # 2=crit,
+        # 3=err,
+        # 4=warning,
+        # 5=notice,
+        # 6=info,
+        # 7=debug
+        if isokay:
             message['level']                = '6'
         else:
             message['level']                = '3'
+
         message['facility']                 = graylog_facility
-        message['host']                     = str(host)
-#        if _success:
-#            message['short_message']        = 'OK: ' + str(requestpath) + " - " + str(gherkinstep)
-#        else:
-#            message['short_message']        = 'FAIL: ' + str(requestpath) + " - " + str(gherkinstep)
-        if _success:
-            message['short_message']   = "OKAY " + str(requestpath)
-            message['short_message']   += " status" + str(statuscode)
-            message['short_message']   += " verb" + str(verb)
-            gherkinstep                = str(gherkinstep)
-            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
-        else:
-            message['short_message']   = "FAIL " + str(requestpath)
-            message['short_message']   += " status" + str(statuscode)
-            message['short_message']   += " verb" + str(verb)
-            gherkinstep = str(gherkinstep)
-            message['short_message']   += " STEP" + gherkinstep.replace(" ", "_")
-        message['full_message']        = '=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
-        message['_rule']               = str(gherkinstep)
-        message['_stdout']             = str(logic)
-        message['_httpverb']           = str(verb)
-        message['_cmd']                = str(curlcommand)
-        message['_httpstatus']         = str(statuscode)
-        message['_httplatency']    = str(latency)
-        message['_url'] = str(requesturl)
-        message['_urlpath'] = str(requestpath)
+        
         try:
-            print message
+            message['host'] = metrics['_targethost']
+        except NameError:
+            message['host'] = 'unknown'
+
+        gherkinstep = str(metrics['_thestep'])
+        if isokay:
+            message['short_message']   = "OKAY"
+            message['short_message']   += " step_" + gherkinstep.replace(" ", "_")
+        else:
+            message['short_message']   = "FAIL" 
+            message['short_message']   += " step_" + gherkinstep.replace(" ", "_")
+
+        for key,value in metrics.items():
+            # Send all metrics accumulated thus far over to graylog.
+            message[key] = str(value)
+            #print "......." + key + " -> " + str(value)
+
+        try:
             gelfinstance = graylogclient()
             for k,v in graylog_servers.items():
                 gelfinstance.log(json.dumps(message),v) # writeout
         except Exception, e:
             print("Graylog send request error. EXCEPTION: " + str(e))
 
-    # Raise typical unit testing exception.
-    if not _success:
-        raise AssertionError(ansi.OKBLUE + "\nRESOURCE .......: " + ansi.FAIL + str(requesturl)   + 
-                             ansi.OKBLUE + "\nREPRODUCE WITH..: " + ansi.FAIL + str(curlcommand) +
-                             ansi.OKBLUE + "\nUNDERLYING_LOGIC: " + ansi.FAIL + str(logic)  + ansi.ENDC)
+    # Hook em
+    if not isokay:
+        raise YourTestWasFatalException('Error found.')
 
 def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True):
     """ This builds curl commands, for the devops engineer who wants proof.
     e.g.:
     >> curlcmd(verb='GET',url='http://aol.com',timeout=10,payload=None,sslverify=False)
     >> curlcmd(verb='POST',url='http://aol.com',timeout=10,payload="TEST",sslverify=True)
-    
+
     There's lots TODO and add im sure.
     """
     timeout=str(int(timeout))
@@ -219,7 +195,7 @@ def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True
     try:
         ## If headers exist this will work.
         for (header,value) in reqheaders.items():
-            print header,value
+            #print "wildxthang " + str(header + value)
             if header == 'x-auth-token': value = '***CENSORED FOR YOU KNOW SAFETY***'
             curlcmd += "-H " + "\'" + header + ": " + value + "\' "
     except AttributeError:
