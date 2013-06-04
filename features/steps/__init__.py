@@ -136,8 +136,10 @@ def testoutcome(isokay=None,metrics={}):
         for (header,value) in metrics['_httprequesthead'].items():
             #print "wildxthang " + str(header + value)
             if header.lower() == 'x-auth-token':
-                metrics['_httprequesthead'][header] = '***CENSORED***'
+                metrics['_httprequesthead'][header] = metrics['_httprequesthead'][header][0:7] + "*******************"
     except NameError:
+        pass
+    except KeyError:
         pass
 
     if graylog_servers:

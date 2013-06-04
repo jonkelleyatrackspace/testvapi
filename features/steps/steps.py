@@ -59,12 +59,7 @@ def step(context,host,port,timeout):
         testmetrics = { '_targethost'             : hostname,             # Remote test
                         '_originhost'             : LOCAL_IP,             # Test source
                         '_thecmd'                 : curlcommand,
-                        '_httpverb'               : None, # BE FRIENDLY ABOUT THIS.
-                        '_httprequest'            : None, # BE FRIENDLY ABOUT THIS.
-                        '_httpresponsehead'       : None, # BE FRIENDLY ABOUT THIS.
-                        '_httpresponse'           : None, # BE FRIENDLY ABOUT THIS.
                         '_thestep'                : stepsyntax,
-                        '_httpstatuscode'         : None, # BE FRIENDLY ABOUT THIS
                         '_latency'                : latency,
                         '_testtype'               : 'socket'
                         }
@@ -74,15 +69,9 @@ def step(context,host,port,timeout):
         testmetrics = { '_targethost'             : hostname,
                         '_originhost'             : LOCAL_IP,
                         '_thecmd'                 : curlcommand,   # Reproduce one liner.
-                        '_httpverb'               : None, #<< Catcher needs to not care about this.
-                        '_httprequesthead'        : None, 
-                        '_httprequest'            : None, # BE FRIENDLY ABOUT THIS.
-                        '_httpresponsehead'       : None, # BE FRIENDLY ABOUT THIS.
-                        '_httpresponse'           : None, # BE FRIENDLY ABOUT THIS.
                         '_fullmessage'            : str(traceback.format_exc()),
                         '_exception'              : str(traceback.format_exc()),
                         '_thestep'                : stepsyntax,
-                        '_httpstatuscode'         : None, # BE FRIENDLY ABOUT THIS
                         '_latency'                : '30',
                         '_testtype'               : 'socket',
                         }
@@ -132,18 +121,18 @@ def step(context, path):
         try:                 httpstatus          = str(context.response.status_code)
         except NameError:   httpstatus          = str(0)
         try:                httprequesthead     = context.request_headers
-        except NameError:   httprequesthead     = None
+        except NameError:   httprequesthead     = {}
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
         try:                httpresponsehead    = context.response.headers
-        except NameError:   httpresponsehead    = None
+        except NameError:   httpresponsehead    = {}
         try:                httpresponse        = str(context.response.text)
         except NameError:   httpresponse        = None
         testmetrics['_httprequesthead']     = httprequesthead
         testmetrics['_httprequest']         = httprequest
         testmetrics['_httpresponse']        = httpresponse
         testmetrics['_httpresponsehead']    = httpresponsehead
-        testmetrics['_fullmessage']         = '========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
+        testmetrics['_fullmessage']         = '\n========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
         testmetrics['_httpstatuscode']      = httpstatus
         testmetrics['_latency']             = latency
 
@@ -152,11 +141,11 @@ def step(context, path):
         try:                 httpstatus          = str(context.response.status_code)
         except NameError:   httpstatus          = str(0)
         try:                httprequesthead     = context.request_headers
-        except NameError:   httprequesthead     = None
+        except NameError:   httprequesthead     = {}
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
         try:                httpresponsehead    = context.response.headers
-        except NameError:   httpresponsehead    = None
+        except NameError:   httpresponsehead    = {}
         try:                httpresponse        = str(context.response.text)
         except NameError:   httpresponse        = None
         testmetrics['_httprequesthead']     = httprequesthead
