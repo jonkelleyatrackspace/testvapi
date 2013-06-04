@@ -106,16 +106,16 @@ def tcpbanner(targetHost, targetPort, timeOut):
     connsocket.connect((targetHost, targetPort))
     connsocket.send('Hi there\r\n')
     results = connsocket.recv(100)
-    print '' + str(results)
+    print 'OUR PAYLOAD IS EQUAL TO: ' + str(results)
     connsocket.close()
 
 class YourTestWasFatalException(Exception):
 	def __init__(self, ivalue):
-		Exception.__init__( self, ivalue )
+		#Exception.__init__( self, ivalue )  # Uncomment this to add class into trcbck.
 		self.value = ivalue
-		print "An error has been found."
+		#print "ERRORs have been found.  Find the Traceback for details."
 	def __str__(self):
-		return self.value
+		return " >-->  : " + self.value
 
 def testoutcome(isokay=None,metrics={}):
     if isokay == None:
@@ -168,6 +168,7 @@ def testoutcome(isokay=None,metrics={}):
             #print "......." + key + " -> " + str(value)
 
         try:
+            print message
             gelfinstance = graylogclient()
             for k,v in graylog_servers.items():
                 gelfinstance.log(json.dumps(message),v) # writeout
@@ -177,7 +178,7 @@ def testoutcome(isokay=None,metrics={}):
     # Hook em
     if not isokay:
         try:
-            raise YourTestWasFatalException(metrics['_exception'])
+            raise RuntimeError(metrics['_exception'])
         except NameError:
             raise YourTestWasFatalException("Test failed without an _exception metric. Tests should always raise on failure.")
 
