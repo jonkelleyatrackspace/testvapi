@@ -113,7 +113,7 @@ class YourTestWasFatalException(Exception):
 	def __init__(self, ivalue):
 		Exception.__init__( self, ivalue )
 		self.value = ivalue
-		print "Caught an error."
+		print "An error has been found."
 	def __str__(self):
 		return self.value
 
@@ -176,7 +176,10 @@ def testoutcome(isokay=None,metrics={}):
 
     # Hook em
     if not isokay:
-        raise YourTestWasFatalException('Error found.')
+        try:
+            raise YourTestWasFatalException(metrics['_exception'])
+        except NameError:
+            raise YourTestWasFatalException("Test failed without an _exception metric. Tests should always raise on failure.")
 
 def curlcmd(verb='',url='',timeout='30',reqheaders=[{}],payload=None,verify=True):
     """ This builds curl commands, for the devops engineer who wants proof.

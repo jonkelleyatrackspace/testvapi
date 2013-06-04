@@ -56,7 +56,7 @@ def step(context,host,port,timeout):
         latency         = after - before
         
         # All metrics prepending with _ get sent to graylog as metric.
-        testmetrics = { '_tergethost'             : hostname,             # Remote test
+        testmetrics = { '_targethost'             : hostname,             # Remote test
                         '_originhost'             : LOCAL_IP,             # Test source
                         '_thecmd'                 : curlcommand,
                         '_httpverb'               : None, # BE FRIENDLY ABOUT THIS.
@@ -71,7 +71,7 @@ def step(context,host,port,timeout):
         testoutcome(isokay=True, metrics=testmetrics)
     except:
         failure_logic = "SocketError " +str(traceback.format_exc())
-        testmetrics = { '_tergethost'             : hostname,
+        testmetrics = { '_targethost'             : hostname,
                         '_originhost'             : LOCAL_IP,
                         '_thecmd'                 : curlcommand,   # Reproduce one liner.
                         '_httpverb'               : None, #<< Catcher needs to not care about this.
@@ -80,9 +80,10 @@ def step(context,host,port,timeout):
                         '_httpresponsehead'       : None, # BE FRIENDLY ABOUT THIS.
                         '_httpresponse'           : None, # BE FRIENDLY ABOUT THIS.
                         '_fullmessage'            : str(traceback.format_exc()),
+                        '_exception'              : str(traceback.format_exc()),
                         '_thestep'                : stepsyntax,
                         '_httpstatuscode'         : None, # BE FRIENDLY ABOUT THIS
-                        '_latency'                : latency,
+                        '_latency'                : '30',
                         '_testtype'               : 'socket',
                         }
         testoutcome(isokay=False, metrics=testmetrics)
@@ -308,7 +309,11 @@ def step(context, text):
     testmetrics['_thestep']     = "the response will contain string {text}".format(text=text)
 
     if text not in context.response.text:
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected string')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -318,7 +323,11 @@ def step(context, text):
     testmetrics['_thestep']     = "the response will not contain string {text}".format(text=text)
 
     if text in context.response.text:
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected string')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -327,7 +336,11 @@ def step(context, header, value):
     testmetrics                 = context.httpstate
     testmetrics['_thestep']     = "the response will have the header {header} with the value {value}".format(header=header,value=value)
     if context.response.headers[header] != value:
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected headers')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -339,7 +352,11 @@ def step(context, header):
 #        logging.debug("I saw these headers though...")
 #        for k, v in context.response.headers.iteritems():
 #            logging.debug("header: " + k + " => " + v)
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected headers')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -348,7 +365,11 @@ def step(context, header, value):
     testmetrics                 = context.httpstate
     testmetrics['_thestep']     = "the response will not have the header {header} with the value {value}".format(header=header,value=value)
     if context.response.headers[header] == value:
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected headers')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -357,7 +378,11 @@ def step(context, header,reason):
     testmetrics                 = context.httpstate
     testmetrics['_thestep']     = "the response will not have the header {header}".format(header=header)
     if context.response.headers[header]:
-        testoutcome(isokay=False, metrics=testmetrics)
+        try:
+            raise YourTestWasFatalException('Unexpected headers')
+        except:
+            testmetrics['_exception'] = str(traceback.format_exc())
+            testoutcome(isokay=False, metrics=testmetrics)
     else:
         testoutcome(isokay=True, metrics=testmetrics)
 # ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ---- ----  ----
@@ -369,7 +394,11 @@ def step(context, path, value, valuetype):
     try:
         if not context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists first of all... else raise() """
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response json has unexpected path')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
 
         # Effing unicode strings need hacks to determine their type.
         if valuetype == "int":
@@ -386,8 +415,11 @@ def step(context, path, value, valuetype):
         # Check if value is there as desired.
         if not value in context.jsonsearch.returnpath(context.response.json(),path):
             """ Verify if value within returned list of results for that path.. else raise() """
-            logging.error(ansi.OKBLUE +  "Gherkin input was " + str(type(value)) + " with value \"" + str(value) + "\" ... remote side contained a list with " + str(context.jsonsearch.returnpath(context.response.json(),path)) + "\n"+ansi.ENDC )
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response json has unexpected path')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
         else:
             testoutcome(isokay=True, metrics=testmetrics)
     except:
@@ -416,8 +448,11 @@ def step(context, path, value, valuetype):
 
             if value in context.jsonsearch.returnpath(context.response.json(),path):
                 """ Verify if string is within path, if so raise() """
-                logging.error(ansi.OKBLUE +  "Gherkin input was " + str(type(value)) + " with value \"" + str(value) + "\" ... remote side contained a list with " + str(context.jsonsearch.returnpath(context.response.json(),path)) + "\n"+ansi.ENDC )
-                testoutcome(isokay=False, metrics=testmetrics)
+                try:
+                    raise YourTestWasFatalException('Response json has unexpected path')
+                except:
+                    testmetrics['_exception'] = str(traceback.format_exc())
+                    testoutcome(isokay=False, metrics=testmetrics)
             else:
                 testoutcome(isokay=True, metrics=testmetrics)
     except:
@@ -432,7 +467,11 @@ def step(context, path):
     try:
         if not context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists first of all """
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response json has unexpected path')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
         else:
             testoutcome(isokay=True, metrics=testmetrics)
     except:
@@ -446,7 +485,11 @@ def step(context, path):
     try:
         if context.jsonsearch.pathexists(context.response.json(),path):
             """ Verify if path exists , then fail """
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response json has unexpected path')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
         else:
             testoutcome(isokay=True, metrics=testmetrics)
     except:
@@ -460,7 +503,11 @@ def step(context, status):
     try:
         status = get_status_code(status)
         if context.response.status_code != status:
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response status not expected')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
         else:
             testoutcome(isokay=True, metrics=testmetrics)
     except:
@@ -474,7 +521,11 @@ def step(context, status):
     try:
         status = get_status_code(status)
         if context.response.status_code == status:
-            testoutcome(isokay=False, metrics=testmetrics)
+            try:
+                raise YourTestWasFatalException('Response status not expected')
+            except:
+                testmetrics['_exception'] = str(traceback.format_exc())
+                testoutcome(isokay=False, metrics=testmetrics)
         else:
             testoutcome(isokay=True, metrics=testmetrics)
     except:
