@@ -1,0 +1,1 @@
+Then expect the response json "$.versions.version[*].status." value "CURRENT" "str" to become "UPDATED" "str" within 300 seconds
