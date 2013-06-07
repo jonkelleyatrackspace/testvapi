@@ -118,7 +118,7 @@ def step(context, path):
         latency             = after - before
         
         try:                 httpstatus          = str(context.response.status_code)
-        except NameError:   httpstatus          = str(0)
+        except AttributeError:   httpstatus          = str(0)
         try:                httprequesthead     = context.request_headers
         except NameError:   httprequesthead     = {}
         try:                httprequest         = str(payload)
@@ -137,16 +137,16 @@ def step(context, path):
 
         context.httpstate = testmetrics
     except:
-        try:                 httpstatus          = str(context.response.status_code)
-        except NameError:   httpstatus          = str(0)
         try:                httprequesthead     = context.request_headers
         except NameError:   httprequesthead     = {}
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
         try:                httpresponsehead    = context.response.headers
         except NameError:   httpresponsehead    = {}
-        try:                httpresponse        = str(context.response.text)
-        except NameError:   httpresponse        = None
+        httpresponsehead    = {}
+        httpresponse        = None
+        httpstatus          = '0'
+        
         testmetrics['_httprequesthead']     = httprequesthead
         testmetrics['_httprequest']         = httprequest
         testmetrics['_httpresponse']        = httpresponse
@@ -159,6 +159,93 @@ def step(context, path):
         context.httpstate = testmetrics
         testoutcome(isokay=False, metrics=testmetrics)
 
+
+#TODO @when('I post "{path}" payload file "{payload}"')    
+
+@when('I post "{path}" with the data from file "{filename}"')                        # feature-complete
+@when('I post "{path}" with the docstring below')                        # feature-complete
+def step(context, path,filename=None):
+    try:
+        payload = context.text # This is what captures the docstring as payload
+    except AttributeError: #It just means docstring wasnt used in this case.
+        payload = open(filename, "rb").readlines()[0]
+    
+    verb = "POST"
+    stepsyntax = "I " + verb + " {path}".format(path=path)
+
+    context.requestpath = path
+    requesturl  = urljoin(context.request_endpoint, path)   #i.e. https://localhost:3000/v1/operation
+    requestpath = path                                      #i.e. /v1/operation
+    requesthost = urlparse(requesturl).netloc.split(":")[0] #i.e. localhost
+
+    try:                timeout = int(context.request_timeout)
+    except NameError:   timeout = 30
+
+    # Ops yay
+    thiscmd = curlcmd(verb=verb,url=requesturl,timeout=timeout,reqheaders=context.request_headers,payload=None,verify=VERIFY_SSL)
+
+    testmetrics = {}
+    testmetrics['_targethost']  = requesthost
+    testmetrics['_requestpath'] = requestpath
+    testmetrics['_requesturl']  = requesturl
+    testmetrics['_testcamefrom'] = LOCAL_IP
+    testmetrics['_thecmd']      = thiscmd
+    testmetrics['_httpverb']    = verb
+    testmetrics['_testtype']    = 'http'
+    testmetrics['_thestep']     = stepsyntax
+
+    if VERIFY_SSL:
+        testmetrics['_sslcertverify'] = 'True'
+    else:
+        testmetrics['_sslcertverify'] = 'False'
+
+    try:
+        before              = time.time()
+        context.response = requests.post(requesturl, data=payload,timeout=timeout,headers=context.request_headers,verify=False) # Makes full 
+        after               = time.time()
+        latency             = after - before
+        
+        try:                 httpstatus          = str(context.response.status_code)
+        except AttributeError:   httpstatus          = str(0)
+        try:                httprequesthead     = context.request_headers
+        except NameError:   httprequesthead     = {}
+        try:                httprequest         = str(payload)
+        except NameError:   httprequest         = None
+        try:                httpresponsehead    = context.response.headers
+        except NameError:   httpresponsehead    = {}
+        try:                httpresponse        = str(context.response.text)
+        except NameError:   httpresponse        = None
+        testmetrics['_httprequesthead']     = httprequesthead
+        testmetrics['_httprequest']         = httprequest
+        testmetrics['_httpresponse']        = httpresponse
+        testmetrics['_httpresponsehead']    = httpresponsehead
+        testmetrics['full_message']         = '\n========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
+        testmetrics['_httpstatuscode']      = httpstatus
+        testmetrics['_latency']             = latency
+
+        context.httpstate = testmetrics
+    except:
+
+        try:                httprequesthead     = context.request_headers
+        except AttributeError:   httprequesthead     = {}
+        try:                httprequest         = str(payload)
+        except AttributeError:   httprequest         = None
+        httpresponsehead    = {}
+        httpresponse        = None
+        httpstatus          = '0'
+
+        testmetrics['_httprequesthead']     = httprequesthead
+        testmetrics['_httprequest']         = httprequest
+        testmetrics['_httpresponse']        = httpresponse
+        testmetrics['_httpresponsehead']    = httpresponsehead
+        testmetrics['full_message']         = 'HTTP.Requests.Exception:' +  str(traceback.format_exc())
+        testmetrics['_httpstatuscode']      = httpstatus
+        testmetrics['_latency']             = timeout
+        testmetrics['_exception']           = str(traceback.format_exc()) # For exceptions!
+
+        context.httpstate = testmetrics
+        testoutcome(isokay=False, metrics=testmetrics)
+    
 #@when('I delete "{path}"')                                              # TODO untested XXX
 #def step(context, path):# XXX UNTESTED XXX
 #    """ Entirely untested!! (no unit tests written for this yet)
@@ -195,64 +282,7 @@ def step(context, path):
 #                            'latency'         : _latency,
 #                            'statuscode'      : _statuscode
 #                        }
-#TODO @when('I post "{path}" payload file "{payload}"')    
 
-@when('I post "{path}" with the data from file "{filename}"')                        # feature-complete
-@when('I post "{path}" with the docstring below')                        # feature-complete
-def step(context, path,filename=None):
-    try:
-        payload = context.text # This is what captures the docstring as payload
-    except AttributeError: #It just means docstring wasnt used in this case.
-        payload = open(filename, "rb").readlines()[0]
-
-    stepsyntax = "I POST {path} with payload below...".format(path=path)
-    context.requestpath = path
-    url = urljoin(context.request_endpoint, path)
-    try: # There's got to be a better way to set None if missing/attributerror
-        timeout = context.request_timeout
-    except AttributeError:
-        timeout = None
-
-    try:
-        timebench_before = time.time()
-        context.response = requests.post(url, data=payload,timeout=timeout,headers=context.request_headers,verify=False) # Makes full 
-        timebench_after = time.time()
-        _latency = timebench_after - timebench_before
-        try:    _statuscode         = str(context.response.status_code)
-        except: _statuscode         = '-1'
-        try:    _requestheaders     = str(context.request_headers)
-        except: _requestheaders     = None
-        try:    _request            = str(payload)
-        except: _request            = None
-        try:    _responseheaders    = str(context.response.headers)
-        except: _responseheaders    = None
-        try:    _response            = str(context.response.text)
-        except: _response            = "Not applicable (No data?)" 
-
-        _curlcommand = curlcmd(verb='POST',url=url,timeout=timeout,reqheaders=context.request_headers,payload=payload,verify=False)
-        print "CURL COMMAND: " + _curlcommand
-
-        context.httpstate = { 'requesturi'      : url ,
-                                'verb'            : 'GET' ,
-                                'requestheaders'  : _requestheaders ,
-                                'request'         : _request ,
-                                'responseheaders' : _responseheaders ,
-                                'response'        : _response ,
-                                'latency'         : _latency,
-                                'statuscode'      : _statuscode,
-                                'curlcommand'      : _curlcommand
-                            }
-    except:
-        failure_logic = traceback.format_exc()
-        assertionthing(success=False,verb=context.httpstate['verb'],
-                    requesturl=context.httpstate['requesturi'],
-                    requesthead=context.httpstate['requestheaders'],
-                    request=context.httpstate['request'],
-                    responsehead=context.httpstate['responseheaders'],
-                    response=context.httpstate['response'],
-                    curlcommand=context.httpstate['curlcommand'], gherkinstep=stepsyntax,
-                    logic=failure_logic,statuscode=context.httpstate['statuscode'],latency=context.httpstate['latency'],)
-    
 #TODO @when('I put "{path}" payload file "{payload}"')  
 @when('I put "{path}" with payload "{payload}"')                        # TODO untested XXX
 def step(context, path,payload):

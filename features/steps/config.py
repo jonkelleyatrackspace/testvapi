@@ -11,7 +11,7 @@ graylog_servers = False
 
 # Graylog.Facility
 #  Graylog docs suggest 'GELF' for gelf applications, syslog for syslog sources, etc.      
-graylog_facility    = 'GELFtv'  # Your graylog faculity
+graylog_facility    = 'GELF'  # Your graylog faculity
 
 
 # Requests.SSL.Verification
