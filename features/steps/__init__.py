@@ -44,7 +44,7 @@ class ansi:
     HEADER = '\033[95m';  OKBLUE = '\033[94m'; OKGREEN = '\033[92m'
     WARNING = '\033[93m'; FAIL   = '\033[91m' ;ENDC    = '\033[0m'
 
-if not graylog_servers:
+if not config.graylog_servers:
     """ THX STYLE INTRO """
     logging.critical(ansi.OKBLUE + "=========================================================" + ansi.ENDC)# THX STYLE INTRO
     logging.critical(ansi.OKBLUE + "testvapi :: Testing the values of all your apis          " + ansi.ENDC)# THX STYLE INTRO
@@ -129,7 +129,7 @@ def testoutcome(isokay=None,metrics={}):
     except KeyError:
         pass
 
-    if graylog_servers:
+    if config.graylog_servers:
         message = {}
         message['version']                  = '1.0'
         # 0=emerg,
@@ -168,7 +168,7 @@ def testoutcome(isokay=None,metrics={}):
         try:
             print message
             gelfinstance = graylogclient()
-            for k,v in graylog_servers.items():
+            for k,v in config.graylog_servers.items():
                 gelfinstance.log(json.dumps(message),v) # writeout
         except Exception, e:
             print("Graylog send request error. EXCEPTION: " + str(e))
