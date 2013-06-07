@@ -1,4 +1,5 @@
 #!/usr/bin/env python 
+import config
 
 ###########################################################################
 # Author: Jon Kelley <jon.kelley@rackspace>                               #
@@ -17,22 +18,8 @@
 #    requests 1.2.0     #
 #    jsonpath 0.54      #
 #########################
-########################################################################
-# Test Settings
-#-----------------------------------------------------------------------
-# Graylog  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-graylog_servers = { 'r' : '10.14.247.240', 'x' : '127.0.0.1', 'y' : '127.0.0.2' } 
-# Either set to false for disable, or set to a dictionary like { 'desc' : '0.0.0.0' , }
-                                        
-graylog_facility    = 'GELFtv'  # Your graylog faculity
+#'=======Request=======\n' + str(request) + '\n\n\n=======Response=======\n' + 'Headers:\n' + str(responsehead) + '\n\nBody:\n' + str(response)
 
-# Requests options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-verify_ssl_certificates    = False          # If your SSL certs are bad
-                                            # you will get nasty exceptions.
-                                            # You should have good SSL certs.
-                                            # If you don't, set this to False.
-                                            # Then fix your certs.
-                                            # Then set this to true.
 ########################################################################
  
 #########################################################################

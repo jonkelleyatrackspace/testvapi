@@ -1,4 +1,3 @@
-VERIFY_SSL = False
 #############################
 ## GIVEN
 #############################
@@ -69,7 +68,7 @@ def step(context,host,port,timeout):
         testmetrics = { '_targethost'             : hostname,
                         '_originhost'             : LOCAL_IP,
                         '_thecmd'                 : curlcommand,   # Reproduce one liner.
-                        '_fullmessage'            : str(traceback.format_exc()),
+                        'full_message'            : str(traceback.format_exc()),
                         '_exception'              : str(traceback.format_exc()),
                         '_thestep'                : stepsyntax,
                         '_latency'                : '30',
@@ -132,7 +131,7 @@ def step(context, path):
         testmetrics['_httprequest']         = httprequest
         testmetrics['_httpresponse']        = httpresponse
         testmetrics['_httpresponsehead']    = httpresponsehead
-        testmetrics['_fullmessage']         = '\n========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
+        testmetrics['full_message']         = '\n========request========\n' + str(httprequest) + '\n\n\n========resp.headers========\n' + str(httpresponsehead) + '\n\n\n========response========\n' + str(httpresponse)
         testmetrics['_httpstatuscode']      = httpstatus
         testmetrics['_latency']             = latency
 
@@ -152,7 +151,7 @@ def step(context, path):
         testmetrics['_httprequest']         = httprequest
         testmetrics['_httpresponse']        = httpresponse
         testmetrics['_httpresponsehead']    = httpresponsehead
-        testmetrics['_fullmessage']         = 'HTTP.Requests.Exception:' +  str(traceback.format_exc())
+        testmetrics['full_message']         = 'HTTP.Requests.Exception:' +  str(traceback.format_exc())
         testmetrics['_httpstatuscode']      = httpstatus
         testmetrics['_latency']             = timeout
         testmetrics['_exception']           = str(traceback.format_exc()) # For exceptions!
