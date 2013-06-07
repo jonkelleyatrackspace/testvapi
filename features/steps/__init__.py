@@ -119,7 +119,7 @@ def testoutcome(isokay=None,metrics={}):
         print('END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEBUG....END.HTTP.DEB')
 
     try:
-        # Attempt to rewrite all auth tokens into obscurity.
+        # If attribute exists, attempt to munge the token.
         for (header,value) in metrics['_httprequesthead'].items():
             #print "wildxthang " + str(header + value)
             if header.lower() == 'x-auth-token':
@@ -127,6 +127,11 @@ def testoutcome(isokay=None,metrics={}):
     except NameError:
         pass
     except KeyError:
+        pass
+
+    try: # If attribute exists, round it reasonably.
+        metrics['_latency'] = round(metrics['_latency'],3)
+    except:
         pass
 
     if config.graylog_servers:
