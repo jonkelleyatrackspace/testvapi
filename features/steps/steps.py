@@ -141,8 +141,6 @@ def step(context, path):
         except NameError:   httprequesthead     = {}
         try:                httprequest         = str(payload)
         except NameError:   httprequest         = None
-        try:                httpresponsehead    = context.response.headers
-        except NameError:   httpresponsehead    = {}
         httpresponsehead    = {}
         httpresponse        = None
         httpstatus          = '0'
