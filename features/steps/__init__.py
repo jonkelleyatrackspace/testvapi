@@ -158,12 +158,18 @@ def testoutcome(isokay=None,metrics={}):
             message['host'] = 'unknown'
 
         gherkinstep = str(metrics['_thestep'])
+        gherkinstep = gherkinstep.replace(" ", "_") # Convert space to _
+        gherkinstep = gherkinstep.replace("$", "") # Convert $ to _
+        gherkinstep = gherkinstep.replace("[", "") # Remove this char.
+        gherkinstep = gherkinstep.replace("]", "") # Remove this char.
+        gherkinstep = gherkinstep.replace("*", "") # Remove this char.
+        gherkinstep = gherkinstep.replace(".", "") # Remove this char.
         if isokay:
             message['short_message']   = "OKAY"
-            message['short_message']   += " step_" + gherkinstep.replace(" ", "_")
+            message['short_message']   += " step_" + gherkinstep
         else:
             message['short_message']   = "FAIL" 
-            message['short_message']   += " step_" + gherkinstep.replace(" ", "_")
+            message['short_message']   += " step_" + gherkinstep
 
         for key,value in metrics.items():
             # Send all metrics accumulated thus far over to graylog.
