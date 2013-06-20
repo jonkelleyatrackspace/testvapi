@@ -137,10 +137,8 @@ def step(context, path):
 
         context.httpstate = testmetrics
     except:
-        try:                httprequesthead     = context.request_headers
-        except NameError:   httprequesthead     = {}
-        try:                httprequest         = str(payload)
-        except NameError:   httprequest         = None
+        httprequesthead     = {}
+        httprequest         = None
         httpresponsehead    = {}
         httpresponse        = None
         httpstatus          = '0'
@@ -223,11 +221,8 @@ def step(context, path,filename=None):
 
         context.httpstate = testmetrics
     except:
-
-        try:                httprequesthead     = context.request_headers
-        except AttributeError:   httprequesthead     = {}
-        try:                httprequest         = str(payload)
-        except AttributeError:   httprequest         = None
+        httprequesthead     = {}
+        httprequest         = None
         httpresponsehead    = {}
         httpresponse        = None
         httpstatus          = '0'
