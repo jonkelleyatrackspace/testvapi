@@ -35,6 +35,7 @@ import traceback                                                        # =>  tr
 import time                                                             # =>  For request time benchmarking.
 from socket import *; import zlib                                       # =>  For the graylogclient class.
                                                                         # => and for banner fetcher
+import re
 import os # for open()
 import urllib2; u = urllib2.urlopen('http://checkip.dyndns.org'); line = u.next(); LOCAL_IP=line.split("<")[6].split().pop()
 #########################################################################
@@ -158,12 +159,7 @@ def testoutcome(isokay=None,metrics={}):
             message['host'] = 'unknown'
 
         gherkinstep = str(metrics['_thestep'])
-        gherkinstep = gherkinstep.replace(" ", "_") # Convert space to _
-        gherkinstep = gherkinstep.replace("$", "") # Convert $ to _
-        gherkinstep = gherkinstep.replace("[", "") # Remove this char.
-        gherkinstep = gherkinstep.replace("]", "") # Remove this char.
-        gherkinstep = gherkinstep.replace("*", "") # Remove this char.
-        gherkinstep = gherkinstep.replace(".", "") # Remove this char.
+        gherkinstep = re.sub('[^A-Za-z0-9]+', '_', gherkinstep)
         if isokay:
             message['short_message']   = "OKAY"
             message['short_message']   += " step_" + gherkinstep
